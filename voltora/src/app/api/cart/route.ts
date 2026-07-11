@@ -148,6 +148,10 @@ export async function PATCH(req: NextRequest) {
     if (parsed.data.quantity === 0) {
       await prisma.cartItem.delete({ where: { id: parsed.data.itemId } });
     } else {
+      const stock = item.variant ? item.variant.stockQuantity : item.product.stockQuantity;
+      if (parsed.data.quantity > stock) {
+        return errorJson(`Only ${stock} in stock`, 400);
+      }
       await prisma.cartItem.update({
         where: { id: parsed.data.itemId },
         data: { quantity: parsed.data.quantity },

@@ -11,28 +11,21 @@ echo.
 where node >nul 2>nul
 if errorlevel 1 (
   echo ERROR: Node.js is not installed.
-  echo Download it from https://nodejs.org  then run this file again.
-  echo.
+  echo Download it from https://nodejs.org
   pause
   exit /b 1
 )
 
 if not exist ".env" (
   copy ".env.example" ".env" >nul
-  echo Created .env file
+  echo Created .env from .env.example
+  echo Edit .env to add payment credentials ^(STRIPE_SECRET_KEY or GGUSONE_*^).
 )
 
-findstr /C:"GGUSONE_MCH_NO" .env >nul 2>nul
-if errorlevel 1 (
-  echo.>>.env
-  echo GGUSONE_HOST=https://www.ggusonepay.com>>.env
-  echo GGUSONE_MCH_NO=2026069382>>.env
-  echo GGUSONE_KEY=1hY97a2Z2A3uGPpw1a4t3a1FY43S51X8>>.env
-)
-echo Step 1/4 - Installing packages (first time can take a few minutes)...
+echo Step 1/4 - Installing packages...
 call npm install
 if errorlevel 1 (
-  echo Install failed. Check your internet connection.
+  echo Install failed.
   pause
   exit /b 1
 )
@@ -46,7 +39,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
-echo Step 3/4 - Loading products and demo accounts...
+echo Step 3/4 - Loading demo catalog...
 call npm run db:seed
 if errorlevel 1 (
   echo Seed failed.
@@ -56,10 +49,8 @@ if errorlevel 1 (
 
 echo Step 4/4 - Starting website...
 echo.
-echo Open your browser to:  http://localhost:3000
-echo Admin panel:           http://localhost:3000/admin/login
-echo.
-echo Keep this window OPEN. Press Ctrl+C to stop.
+echo Store: http://localhost:3000
+echo Admin: http://localhost:3000/admin/login
 echo.
 call npm run dev
 pause

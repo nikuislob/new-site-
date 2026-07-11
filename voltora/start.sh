@@ -16,33 +16,23 @@ fi
 
 if [ ! -f .env ]; then
   cp .env.example .env
-  echo "Created .env file"
+  echo "Created .env from .env.example"
+  echo "Edit .env to add STRIPE_SECRET_KEY or GGUSONE_* payment credentials."
 fi
 
-if ! grep -q "GGUSONE_MCH_NO" .env 2>/dev/null; then
-  cat >> .env <<'EOF'
-
-GGUSONE_HOST="https://www.ggusonepay.com"
-GGUSONE_MCH_NO="2026069382"
-GGUSONE_KEY="1hY97a2Z2A3uGPpw1a4t3a1FY43S51X8"
-EOF
-fi
-
-echo "Step 1/4 - Installing packages (first time can take a few minutes)..."
+echo "Step 1/4 - Installing packages..."
 npm install
 
 echo "Step 2/4 - Setting up database..."
 npx prisma generate
 npx prisma db push
 
-echo "Step 3/4 - Loading products and demo accounts..."
+echo "Step 3/4 - Loading demo catalog..."
 npm run db:seed
 
 echo "Step 4/4 - Starting website..."
 echo ""
-echo "Open your browser to:  http://localhost:3000"
-echo "Admin panel:           http://localhost:3000/admin/login"
-echo ""
-echo "Keep this window OPEN. Press Ctrl+C to stop."
+echo "Store:  http://localhost:3000"
+echo "Admin:  http://localhost:3000/admin/login"
 echo ""
 npm run dev

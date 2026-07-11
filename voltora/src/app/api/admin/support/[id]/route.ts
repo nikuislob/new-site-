@@ -4,10 +4,12 @@ import { prisma } from "@/lib/db";
 import { safeJson, errorJson } from "@/lib/utils";
 import { z } from "zod";
 
-const patchSchema = z.object({
-  status: z.enum(["OPEN", "CLOSED"]).optional(),
-  assignedToId: z.string().optional().nullable(),
-});
+const patchSchema = z
+  .object({
+    status: z.enum(["OPEN", "CLOSED"]).optional(),
+    assignedToId: z.string().optional().nullable(),
+  })
+  .strict();
 
 const replySchema = z.object({ body: z.string().min(1).max(2000) });
 
@@ -16,7 +18,7 @@ type Params = { params: Promise<{ id: string }> };
 export async function GET(_req: NextRequest, { params }: Params) {
   try {
     const admin = await requireAdmin();
-    if (!adminCan(admin.role, "support")) return errorJson("Forbidden", 403);
+    if (!adminCan(admin.role, "support:read")) return errorJson("Forbidden", 403);
 
     const { id } = await params;
     const conversation = await prisma.conversation.findUnique({

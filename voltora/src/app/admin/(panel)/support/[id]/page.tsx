@@ -56,17 +56,21 @@ export default function SupportDetailPage() {
     }
 
     fetchConversation();
+    const interval = setInterval(() => {
+      adminFetch<{ conversation: Conversation }>(`/api/admin/support/${id}`)
+        .then((d) => { if (!cancelled) setConversation(d.conversation); })
+        .catch(() => {});
+    }, 3000);
+
     adminFetch<{ admins: Admin[] }>("/api/admin/admins")
       .then((d) => { if (!cancelled) setAdmins(d.admins); })
       .catch(() => {});
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [id]);
-
-  async function reload() {
-    const data = await adminFetch<{ conversation: Conversation }>(`/api/admin/support/${id}`);
-    setConversation(data.conversation);
-  }
 
   async function handleReply(e: FormEvent) {
     e.preventDefault();
@@ -74,12 +78,16 @@ export default function SupportDetailPage() {
     setSending(true);
     setError("");
     try {
-      await adminFetch(`/api/admin/support/${id}`, {
+      const data = await adminFetch<{ message: Message }>(`/api/admin/support/${id}`, {
         method: "POST",
         body: JSON.stringify({ body: reply.trim() }),
       });
       setReply("");
-      await reload();
+      setConversation((prev) =>
+        prev
+          ? { ...prev, messages: [...prev.messages, data.message] }
+          : prev
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to send reply");
     } finally {

@@ -42,3 +42,6 @@ IF SOMETHING FAILS
 - To stop the site: press Ctrl + C in the terminal
 
 Prices are already set 80% lower than list price.
+
+Payment credentials (Stripe / gateway) go in the .env file — never share keys.
+See README.md and DELIVERY-REPORT.md for full setup.

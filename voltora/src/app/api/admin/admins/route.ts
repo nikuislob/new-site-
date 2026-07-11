@@ -13,7 +13,7 @@ const createSchema = z.object({
     .regex(/[A-Za-z]/)
     .regex(/[0-9]/),
   name: z.string().min(1).max(100),
-  role: z.enum(["SUPER_ADMIN", "PRODUCT_MANAGER", "ORDER_MANAGER", "SUPPORT_AGENT"]),
+  role: z.enum(["SUPER_ADMIN", "PRODUCT_MANAGER", "ORDER_MANAGER", "PAYMENT_MANAGER", "SUPPORT_AGENT"]),
 });
 
 export async function GET() {

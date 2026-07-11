@@ -2,10 +2,16 @@ import { NextRequest } from "next/server";
 import { getCurrentCustomer } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { absoluteUrl, errorJson, safeJson } from "@/lib/utils";
-import { createGgPayment, isGgConfigured, wayCodeFromMethodName } from "@/lib/ggusone";
+import { getActivePaymentProvider, verifyGuestOrderToken } from "@/lib/payments/providers";
+import { wayCodeFromMethodName } from "@/lib/ggusone";
 import { z } from "zod";
+import type { CustomerPaymentMethod } from "@/lib/payments/types";
 
-const schema = z.object({ paymentMethodId: z.string().min(1) });
+const schema = z.object({
+  paymentMethodId: z.string().min(1),
+  accessToken: z.string().optional(),
+  guestEmail: z.string().email().optional(),
+});
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -17,6 +23,14 @@ function clientIp(req: NextRequest) {
   );
 }
 
+function methodToCustomerType(name: string): CustomerPaymentMethod {
+  const n = name.toLowerCase();
+  if (n.includes("apple")) return "APPLE_PAY";
+  if (n.includes("google")) return "GOOGLE_PAY";
+  if (n.includes("card") || n.includes("credit") || n.includes("debit")) return "CARD_HOSTED";
+  return "EXTERNAL_LINK";
+}
+
 export async function POST(req: NextRequest, { params }: Params) {
   try {
     const { id } = await params;
@@ -25,22 +39,45 @@ export async function POST(req: NextRequest, { params }: Params) {
     if (!parsed.success) return errorJson("paymentMethodId required", 400);
 
     const user = await getCurrentCustomer();
-    const guestEmail = req.headers.get("x-guest-email")?.toLowerCase();
+    const guestEmail = (
+      parsed.data.guestEmail ||
+      req.headers.get("x-guest-email") ||
+      ""
+    ).toLowerCase();
+    const accessToken = parsed.data.accessToken || req.headers.get("x-order-token") || "";
 
     const order = await prisma.order.findFirst({
       where: { OR: [{ id }, { orderNumber: id }] },
+      include: { items: true },
     });
     if (!order) return errorJson("Order not found", 404);
 
     const owns =
       (user && order.userId === user.id) ||
-      (guestEmail && order.customerEmail.toLowerCase() === guestEmail) ||
-      (!order.userId && !user); // guest order, same browser right after checkout
+      (guestEmail &&
+        accessToken &&
+        order.customerEmail === guestEmail &&
+        verifyGuestOrderToken(order.orderNumber, guestEmail, accessToken));
 
     if (!owns) return errorJson("Order not found", 404);
 
-    if (order.paymentStatus !== "PENDING") {
+    if (order.paymentStatus !== "PENDING" && order.paymentStatus !== "AWAITING_ASSISTED") {
       return errorJson("Payment already processed for this order", 400);
+    }
+
+    // Re-validate inventory before opening payment
+    for (const item of order.items) {
+      if (item.variantId) {
+        const v = await prisma.productVariant.findUnique({ where: { id: item.variantId } });
+        if (!v || v.stockQuantity < item.quantity) {
+          return errorJson(`Insufficient stock for ${item.productName}`, 400);
+        }
+      } else if (item.productId) {
+        const p = await prisma.product.findUnique({ where: { id: item.productId } });
+        if (!p || p.stockQuantity < item.quantity) {
+          return errorJson(`Insufficient stock for ${item.productName}`, 400);
+        }
+      }
     }
 
     const method = await prisma.paymentMethod.findUnique({
@@ -48,6 +85,12 @@ export async function POST(req: NextRequest, { params }: Params) {
     });
     if (!method || !method.isActive) return errorJson("Payment method not found", 404);
     if (method.slot < 1 || method.slot > 4) return errorJson("Invalid payment method slot", 400);
+
+    // Reject crypto-labeled methods from customer checkout
+    const banned = /crypto|bitcoin|btc|usdt|ethereum|wallet address/i;
+    if (banned.test(method.name) || banned.test(method.instructions || "")) {
+      return errorJson("This payment method is not available for customer checkout", 400);
+    }
 
     await prisma.order.update({
       where: { id: order.id },
@@ -59,52 +102,35 @@ export async function POST(req: NextRequest, { params }: Params) {
       },
     });
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const notifyUrl = absoluteUrl("/api/payments/ggusone/notify");
-    const returnUrl = absoluteUrl(`/order/${order.orderNumber}?paid=pending`);
+    const notifyUrl = absoluteUrl("/api/payments/webhook");
+    const successUrl = absoluteUrl(`/order/${order.orderNumber}`);
+    const cancelUrl = absoluteUrl(`/checkout?cancelled=1`);
 
-    // Prefer live gateway when configured; otherwise use admin HTTPS link.
-    let paymentUrl = method.paymentUrl;
-    let gatewayMsg: string | undefined;
-    let tradeNo: string | undefined;
+    const provider = getActivePaymentProvider();
+    const wayFromInstructions = method.instructions?.match(/WAYCODE:([A-Z0-9_]+)/i)?.[1];
 
-    if (isGgConfigured()) {
-      // wayCode stored in instructions first line as WAYCODE:XXX optional, else from name
-      const wayFromInstructions = method.instructions?.match(/WAYCODE:([A-Z0-9_]+)/i)?.[1];
-      const wayCode = wayCodeFromMethodName(method.name, wayFromInstructions);
+    const created = await provider.createPayment({
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      amountCents: Math.round(order.total * 100),
+      currency: "usd",
+      customerEmail: order.customerEmail,
+      customerName: order.customerName,
+      description: `Voltora order ${order.orderNumber}`,
+      successUrl: `${successUrl}?token=${accessToken || ""}&email=${encodeURIComponent(order.customerEmail)}`,
+      cancelUrl,
+      notifyUrl,
+      method: methodToCustomerType(method.name),
+      clientIp: clientIp(req),
+      metadata: {
+        paymentUrl: method.paymentUrl,
+        wayCode: wayCodeFromMethodName(method.name, wayFromInstructions),
+      },
+    });
 
-      const created = await createGgPayment({
-        mchOrderNo: order.orderNumber,
-        amountDollars: order.total,
-        subject: `Voltora ${order.orderNumber}`,
-        wayCode,
-        notifyUrl,
-        returnUrl,
-        clientIp: clientIp(req),
-      });
-
-      if (created.ok && created.payUrl) {
-        paymentUrl = created.payUrl;
-        tradeNo = created.tradeNo;
-      } else if (created.payUrl) {
-        paymentUrl = created.payUrl;
-        gatewayMsg = created.msg;
-      } else {
-        // Keep configured external link as fallback so checkout still works
-        gatewayMsg = created.msg || "Gateway did not return a pay URL; using configured link.";
-        if (!paymentUrl.startsWith("https://")) {
-          return errorJson(gatewayMsg, 502);
-        }
-      }
-
-      if (tradeNo) {
-        await prisma.order.update({
-          where: { id: order.id },
-          data: {
-            adminNotes: [order.adminNotes, `ggusone tradeNo=${tradeNo}`].filter(Boolean).join("\n"),
-          },
-        });
-      }
+    const paymentUrl = created.paymentUrl || method.paymentUrl;
+    if (!paymentUrl.startsWith("https://") && !paymentUrl.startsWith("http://localhost")) {
+      return errorJson(created.message || "Payment provider did not return a valid URL", 502);
     }
 
     const updated = await prisma.order.findUnique({
@@ -117,9 +143,8 @@ export async function POST(req: NextRequest, { params }: Params) {
       paymentUrl,
       buttonText: method.buttonText,
       instructions: method.instructions,
-      gatewayMsg,
-      appUrl,
-      // Still Payment Pending — notify/admin confirms later
+      provider: created.provider,
+      gatewayMsg: created.ok ? undefined : created.message,
       paymentStatus: "PENDING",
     });
   } catch {

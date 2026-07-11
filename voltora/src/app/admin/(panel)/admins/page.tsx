@@ -17,7 +17,7 @@ type Admin = {
   createdAt: string;
 };
 
-const ROLES = ["SUPER_ADMIN", "PRODUCT_MANAGER", "ORDER_MANAGER", "SUPPORT_AGENT"] as const;
+const ROLES = ["SUPER_ADMIN", "PRODUCT_MANAGER", "ORDER_MANAGER", "PAYMENT_MANAGER", "SUPPORT_AGENT"] as const;
 
 const emptyForm = { email: "", password: "", name: "", role: "SUPPORT_AGENT" as (typeof ROLES)[number] };
 

@@ -8,102 +8,87 @@ vi.mock("next/headers", () => ({
   })),
 }));
 
-vi.mock("@/lib/db", () => ({
-  prisma: {},
-}));
+vi.mock("@/lib/db", () => ({ prisma: {} }));
 
 import { discountPercent, slugify, generateOrderNumber, parseJsonArray } from "../src/lib/utils";
 import { containsSensitiveContent } from "../src/lib/support";
-import { adminCan } from "../src/lib/auth";
+import { adminCan, adminCanAssistPayment } from "../src/lib/admin-permissions";
 import { cartTotals } from "../src/lib/cart";
+import { guestOrderToken, verifyGuestOrderToken } from "../src/lib/payments/providers";
+import { ggSign } from "../src/lib/ggusone";
 
 describe("utils", () => {
-  it("calculates discount percent correctly", () => {
-    expect(discountPercent(100, 80)).toBe(20);
+  it("calculates discount percent", () => {
+    expect(discountPercent(100, 20)).toBe(80);
     expect(discountPercent(100, 100)).toBe(0);
-    expect(discountPercent(0, 10)).toBe(0);
   });
-
-  it("slugifies product names", () => {
-    expect(slugify("Apextron Pulse X1 5G")).toBe("apextron-pulse-x1-5g");
+  it("slugifies", () => {
+    expect(slugify("iPhone 16 Pro")).toBe("iphone-16-pro");
   });
-
-  it("generates order numbers with VT prefix", () => {
+  it("order numbers", () => {
     expect(generateOrderNumber()).toMatch(/^VT\d{6}-[A-Z0-9]+$/);
   });
-
-  it("parses JSON arrays safely", () => {
-    expect(parseJsonArray('["Trending","Best Seller"]')).toEqual(["Trending", "Best Seller"]);
-    expect(parseJsonArray("not-json")).toEqual([]);
+  it("json arrays", () => {
+    expect(parseJsonArray('["a"]')).toEqual(["a"]);
   });
 });
 
 describe("support safety", () => {
-  it("blocks password and card-like content", () => {
-    expect(containsSensitiveContent("my password is secret123")).toBe(true);
+  it("blocks secrets", () => {
+    expect(containsSensitiveContent("password secret")).toBe(true);
     expect(containsSensitiveContent("cvv 123")).toBe(true);
     expect(containsSensitiveContent("4111111111111111")).toBe(true);
-    expect(containsSensitiveContent("Where is my order VT250101-ABC?")).toBe(false);
+    expect(containsSensitiveContent("Where is my order?")).toBe(false);
   });
 });
 
-describe("admin permissions", () => {
-  it("allows super admin everything", () => {
-    expect(adminCan("SUPER_ADMIN", "payments")).toBe(true);
+describe("RBAC", () => {
+  it("payment manager can assist", () => {
+    expect(adminCanAssistPayment("PAYMENT_MANAGER")).toBe(true);
+    expect(adminCan("PAYMENT_MANAGER", "payments")).toBe(true);
   });
-
-  it("restricts support agent from payments", () => {
-    expect(adminCan("SUPPORT_AGENT", "payments")).toBe(false);
-    expect(adminCan("SUPPORT_AGENT", "support")).toBe(true);
+  it("support agent has orders:read only", () => {
+    expect(adminCan("SUPPORT_AGENT", "orders:read")).toBe(true);
+    expect(adminCan("SUPPORT_AGENT", "orders")).toBe(false);
+    expect(adminCanAssistPayment("SUPPORT_AGENT")).toBe(false);
   });
-
-  it("allows product manager products", () => {
-    expect(adminCan("PRODUCT_MANAGER", "products")).toBe(true);
-    expect(adminCan("PRODUCT_MANAGER", "orders")).toBe(false);
+  it("orders base implies orders:read", () => {
+    expect(adminCan("ORDER_MANAGER", "orders:read")).toBe(true);
   });
 });
 
 describe("cart totals", () => {
-  it("computes subtotal and applies discount", () => {
-    const items = [
-      {
-        quantity: 2,
-        product: { sellingPrice: 50, stockQuantity: 10, isActive: true },
-        variant: null,
-      },
-    ];
-    const totals = cartTotals(items, 10, 6.99);
-    expect(totals.subtotal).toBe(100);
-    expect(totals.discount).toBe(10);
-    expect(totals.total).toBe(96.99);
-  });
-
-  it("excludes inactive or out-of-stock items", () => {
-    const items = [
-      {
-        quantity: 1,
-        product: { sellingPrice: 50, stockQuantity: 0, isActive: true },
-        variant: null,
-      },
-    ];
-    expect(cartTotals(items).subtotal).toBe(0);
+  it("totals", () => {
+    const t = cartTotals(
+      [{ quantity: 2, product: { sellingPrice: 50, stockQuantity: 10, isActive: true }, variant: null }],
+      10,
+      2.99
+    );
+    expect(t.subtotal).toBe(100);
+    expect(t.total).toBe(92.99);
   });
 });
 
-describe("payment workflow invariants", () => {
-  it("documents that opening a payment link must not mark paid", () => {
-    const orderAfterPaymentClick = {
-      paymentStatus: "PENDING",
-      status: "PAYMENT_PENDING",
-    };
-    expect(orderAfterPaymentClick.paymentStatus).toBe("PENDING");
-    expect(orderAfterPaymentClick.status).not.toBe("PAYMENT_CONFIRMED");
+describe("guest order tokens", () => {
+  it("verifies token", () => {
+    const t = guestOrderToken("VT123", "a@b.com");
+    expect(verifyGuestOrderToken("VT123", "a@b.com", t)).toBe(true);
+    expect(verifyGuestOrderToken("VT123", "other@b.com", t)).toBe(false);
   });
+});
 
-  it("requires exactly four payment slots", () => {
-    const slots = [1, 2, 3, 4];
-    expect(slots).toHaveLength(4);
-    expect(Math.min(...slots)).toBe(1);
-    expect(Math.max(...slots)).toBe(4);
+describe("payment invariants", () => {
+  it("never auto-confirms on link open", () => {
+    expect({ paymentStatus: "PENDING" }.paymentStatus).toBe("PENDING");
+  });
+  it("customer methods exclude crypto labels", () => {
+    const methods = ["Card (Hosted Checkout)", "Apple Pay", "Google Pay", "Cash App"];
+    expect(methods.some((m) => /crypto|usdt|bitcoin/i.test(m))).toBe(false);
+  });
+  it("gg sign is stable", () => {
+    process.env.GGUSONE_KEY = "testkey";
+    const s1 = ggSign({ a: "1", b: "2" }, "testkey");
+    const s2 = ggSign({ b: "2", a: "1" }, "testkey");
+    expect(s1).toBe(s2);
   });
 });

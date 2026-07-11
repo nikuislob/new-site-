@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { getSetting } from "@/lib/settings";
 import { checkoutSchema } from "@/lib/validators";
 import { generateOrderNumber, safeJson, errorJson } from "@/lib/utils";
+import { guestOrderToken } from "@/lib/payments/providers";
 
 export async function POST(req: NextRequest) {
   try {
@@ -45,19 +46,36 @@ export async function POST(req: NextRequest) {
 
     const flatRate = Number(await getSetting("flat_shipping_rate")) || 0;
     const freeThreshold = Number(await getSetting("free_shipping_threshold")) || 0;
-    const shippingAmount = baseTotals.subtotal >= freeThreshold ? 0 : flatRate;
+    const shippingAmount =
+      baseTotals.subtotal - discountAmount >= freeThreshold ? 0 : flatRate;
     const totals = cartTotals(cart.items, discountAmount, shippingAmount);
 
     const orderNumber = generateOrderNumber();
     const data = parsed.data;
+    const email = data.customerEmail.toLowerCase();
 
     const order = await prisma.$transaction(async (tx) => {
+      // Re-check stock inside transaction (no decrement yet — happens on payment confirm)
+      for (const item of cart.items) {
+        if (item.variantId) {
+          const v = await tx.productVariant.findUnique({ where: { id: item.variantId } });
+          if (!v || !v.isActive || v.stockQuantity < item.quantity) {
+            throw new Error(`Insufficient stock for ${item.product.name}`);
+          }
+        } else {
+          const p = await tx.product.findUnique({ where: { id: item.productId } });
+          if (!p || !p.isActive || p.stockQuantity < item.quantity) {
+            throw new Error(`Insufficient stock for ${item.product.name}`);
+          }
+        }
+      }
+
       const created = await tx.order.create({
         data: {
           orderNumber,
           userId: user?.id || null,
-          guestEmail: user ? null : data.customerEmail.toLowerCase(),
-          status: "ORDER_CREATED",
+          guestEmail: user ? null : email,
+          status: "PAYMENT_PENDING",
           paymentStatus: "PENDING",
           subtotal: totals.subtotal,
           discountAmount: totals.discount,
@@ -66,7 +84,7 @@ export async function POST(req: NextRequest) {
           total: totals.total,
           couponCode,
           customerName: data.customerName,
-          customerEmail: data.customerEmail.toLowerCase(),
+          customerEmail: email,
           customerPhone: data.customerPhone || null,
           shippingLine1: data.shippingLine1,
           shippingLine2: data.shippingLine2 || null,
@@ -95,42 +113,29 @@ export async function POST(req: NextRequest) {
         include: { items: true },
       });
 
-      await tx.order.update({
-        where: { id: created.id },
-        data: { status: "PAYMENT_PENDING" },
-      });
-
-      for (const item of cart.items) {
-        if (item.variantId) {
-          await tx.productVariant.update({
-            where: { id: item.variantId },
-            data: { stockQuantity: { decrement: item.quantity } },
-          });
-        } else {
-          await tx.product.update({
-            where: { id: item.productId },
-            data: {
-              stockQuantity: { decrement: item.quantity },
-              salesCount: { increment: item.quantity },
-            },
-          });
-        }
-      }
-
       await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
       await tx.cart.update({ where: { id: cart.id }, data: { couponCode: null } });
 
-      if (couponCode) {
-        await tx.coupon.update({
-          where: { code: couponCode },
-          data: { usedCount: { increment: 1 } },
-        });
-      }
-
-      return { ...created, status: "PAYMENT_PENDING" as const };
+      return created;
     });
 
-    return safeJson({ order }, 201);
+    const accessToken = guestOrderToken(order.orderNumber, email);
+
+    return safeJson(
+      {
+        order,
+        accessToken,
+        // Client must not trust prices — these are server-calculated
+        totals: {
+          subtotal: order.subtotal,
+          discount: order.discountAmount,
+          shipping: order.shippingAmount,
+          tax: order.taxAmount,
+          total: order.total,
+        },
+      },
+      201
+    );
   } catch (e) {
     return errorJson(e instanceof Error ? e.message : "Checkout failed", 500);
   }

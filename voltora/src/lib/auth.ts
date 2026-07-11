@@ -4,18 +4,30 @@ import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 import { prisma } from "./db";
 import type { AdminUser, User } from "@prisma/client";
+import { adminCan, adminCanAssistPayment, type AdminRole, ROLE_PERMISSIONS } from "./admin-permissions";
 
-export type AdminRole = "SUPER_ADMIN" | "PRODUCT_MANAGER" | "ORDER_MANAGER" | "SUPPORT_AGENT";
+export type { AdminRole };
+export { adminCan, adminCanAssistPayment, ROLE_PERMISSIONS };
 
 const CUSTOMER_COOKIE = "voltora_session";
 const ADMIN_COOKIE = "voltora_admin_session";
 
 function customerSecret() {
-  return new TextEncoder().encode(process.env.AUTH_SECRET || "dev-secret");
+  const secret = process.env.AUTH_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") throw new Error("AUTH_SECRET is required");
+    return new TextEncoder().encode("dev-secret-not-for-production");
+  }
+  return new TextEncoder().encode(secret);
 }
 
 function adminSecret() {
-  return new TextEncoder().encode(process.env.ADMIN_AUTH_SECRET || "dev-admin-secret");
+  const secret = process.env.ADMIN_AUTH_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") throw new Error("ADMIN_AUTH_SECRET is required");
+    return new TextEncoder().encode("dev-admin-secret-not-for-production");
+  }
+  return new TextEncoder().encode(secret);
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -231,19 +243,4 @@ export function publicAdmin(admin: AdminUser) {
     totpEnabled: admin.totpEnabled,
     lastLoginAt: admin.lastLoginAt,
   };
-}
-
-export const ROLE_PERMISSIONS: Record<AdminRole, string[]> = {
-  SUPER_ADMIN: ["*"],
-  PRODUCT_MANAGER: ["products", "categories", "brands", "coupons", "content", "dashboard"],
-  ORDER_MANAGER: ["orders", "payments", "dashboard"],
-  SUPPORT_AGENT: ["support", "orders:read", "dashboard"],
-};
-
-export function adminCan(role: AdminRole | string, permission: string): boolean {
-  const perms = ROLE_PERMISSIONS[role as AdminRole] || [];
-  if (perms.includes("*")) return true;
-  if (perms.includes(permission)) return true;
-  const base = permission.split(":")[0];
-  return perms.includes(base);
 }

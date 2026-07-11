@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Flame } from "lucide-react";
 import { ProductCard, type ProductCardData } from "@/components/product/ProductCard";
 
 interface ProductRailProps {
@@ -8,6 +8,7 @@ interface ProductRailProps {
   products: ProductCardData[];
   viewAllHref?: string;
   layout?: "rail" | "grid";
+  highlightDeals?: boolean;
 }
 
 export function ProductRail({
@@ -16,32 +17,38 @@ export function ProductRail({
   products,
   viewAllHref,
   layout = "grid",
+  highlightDeals,
 }: ProductRailProps) {
   if (products.length === 0) return null;
 
   return (
-    <section className="py-10 sm:py-14">
+    <section className="home-section">
       <div className="container-page">
-        <div className="mb-6 flex items-end justify-between gap-4">
-          <div className="animate-fade-up">
-            <h2 className="font-display text-2xl font-bold sm:text-3xl">{title}</h2>
-            {subtitle ? <p className="mt-1 text-sm text-[var(--ink-muted)]">{subtitle}</p> : null}
+        <div className="home-section-header">
+          <div>
+            <h2 className="home-section-title flex items-center gap-2">
+              {highlightDeals ? (
+                <Flame className="h-5 w-5 text-[var(--accent)]" aria-hidden />
+              ) : null}
+              {title}
+            </h2>
+            {subtitle ? <p className="mt-0.5 text-xs text-[var(--ink-muted)]">{subtitle}</p> : null}
           </div>
           {viewAllHref ? (
             <Link
               href={viewAllHref}
-              className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-[var(--brand-deep)] hover:underline"
+              className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-[var(--brand-deep)] hover:underline"
             >
-              View all
-              <ArrowRight className="h-4 w-4" />
+              See all
+              <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           ) : null}
         </div>
 
         {layout === "rail" ? (
-          <div className="-mx-4 flex gap-4 overflow-x-auto px-4 pb-2 snap-x snap-mandatory sm:-mx-0 sm:px-0">
+          <div className="product-grid--rail">
             {products.map((product, i) => (
-              <div key={product.id} className="w-[min(280px,78vw)] shrink-0 snap-start animate-fade-up" style={{ animationDelay: `${i * 0.06}s` }}>
+              <div key={product.id}>
                 <ProductCard product={product} priority={i < 2} />
               </div>
             ))}
@@ -49,9 +56,7 @@ export function ProductRail({
         ) : (
           <div className="product-grid">
             {products.map((product, i) => (
-              <div key={product.id} className="animate-fade-up" style={{ animationDelay: `${i * 0.05}s` }}>
-                <ProductCard product={product} priority={i < 4} />
-              </div>
+              <ProductCard key={product.id} product={product} priority={i < 4} />
             ))}
           </div>
         )}

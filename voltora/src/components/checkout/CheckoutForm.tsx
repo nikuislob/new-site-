@@ -54,6 +54,7 @@ interface CreatedOrder {
   total: number;
   paymentStatus: string;
   status: string;
+  accessToken?: string;
 }
 
 async function readJson(res: Response) {
@@ -113,12 +114,22 @@ export function CheckoutForm({
       const data = await readJson(res);
       if (!res.ok) throw new Error(data.error || "Could not create order");
       const o = data.order || data;
+      const accessToken = data.accessToken as string | undefined;
+      if (accessToken) {
+        try {
+          sessionStorage.setItem(`voltora_order_token_${o.orderNumber}`, accessToken);
+          sessionStorage.setItem(`voltora_order_email_${o.orderNumber}`, form.customerEmail.toLowerCase());
+        } catch {
+          /* ignore */
+        }
+      }
       setOrder({
         id: o.id,
         orderNumber: o.orderNumber,
         total: o.total,
         paymentStatus: o.paymentStatus || "PENDING",
         status: o.status || "PAYMENT_PENDING",
+        accessToken,
       });
       setStep("payment");
       window.dispatchEvent(new Event("voltora:cart-updated"));
@@ -137,13 +148,27 @@ export function CheckoutForm({
     setPaying(true);
     setPayHint(null);
     try {
+      let accessToken = order.accessToken;
+      try {
+        accessToken =
+          accessToken ||
+          sessionStorage.getItem(`voltora_order_token_${order.orderNumber}`) ||
+          undefined;
+      } catch {
+        /* ignore */
+      }
       const res = await fetch(`/api/orders/${order.id}/payment`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-guest-email": form.customerEmail,
+          ...(accessToken ? { "x-order-token": accessToken } : {}),
         },
-        body: JSON.stringify({ paymentMethodId: selectedMethod.id }),
+        body: JSON.stringify({
+          paymentMethodId: selectedMethod.id,
+          accessToken,
+          guestEmail: form.customerEmail,
+        }),
       });
       const data = await readJson(res);
       if (!res.ok) throw new Error(data.error || "Could not start payment");
@@ -155,9 +180,14 @@ export function CheckoutForm({
         throw new Error("No valid payment URL returned");
       }
 
-      toast("Opening payment page… order stays Payment Pending until confirmed", "info");
+      const track = `/order/${order.orderNumber}?email=${encodeURIComponent(form.customerEmail)}&token=${accessToken || ""}`;
+      toast("Opening payment… order stays Pending until confirmed", "info");
       if (sameWindow) window.location.href = url;
-      else window.open(url, "_blank", "noopener,noreferrer");
+      else {
+        window.open(url, "_blank", "noopener,noreferrer");
+        // Keep tracking link available
+        void track;
+      }
     } catch (e) {
       toast(e instanceof Error ? e.message : "Payment start failed", "error");
     } finally {
@@ -317,7 +347,10 @@ export function CheckoutForm({
 
               <p className="mt-4 text-xs text-[var(--ink-muted)]">
                 Track order:{" "}
-                <a href={`/order/${order.orderNumber}`} className="font-semibold text-[var(--brand-deep)] underline">
+                <a
+                  href={`/order/${order.orderNumber}?email=${encodeURIComponent(form.customerEmail)}&token=${order.accessToken || ""}`}
+                  className="font-semibold text-[var(--brand-deep)] underline"
+                >
                   /order/{order.orderNumber}
                 </a>
               </p>

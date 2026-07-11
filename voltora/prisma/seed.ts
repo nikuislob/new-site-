@@ -86,6 +86,12 @@ async function main() {
         role: "ORDER_MANAGER",
       },
       {
+        email: "payments@voltora.example",
+        passwordHash,
+        name: "Payment Manager",
+        role: "PAYMENT_MANAGER",
+      },
+      {
         email: "support@voltora.example",
         passwordHash,
         name: "Support Agent",
@@ -626,42 +632,42 @@ async function main() {
     data: [
       {
         slot: 1,
+        name: "Card (Hosted Checkout)",
+        iconUrl: "/images/pay-gpay.svg",
+        paymentUrl: "https://checkout.stripe.com",
+        buttonText: "Pay with Card",
+        instructions:
+          "Secure hosted card checkout. Apple Pay and Google Pay appear automatically when supported by your device and the configured processor. Voltora never stores card numbers or CVV.",
+        isActive: true,
+      },
+      {
+        slot: 2,
+        name: "Apple Pay",
+        iconUrl: "/images/pay-applepay.svg",
+        paymentUrl: "https://checkout.stripe.com",
+        buttonText: "Pay with Apple Pay",
+        instructions:
+          "WAYCODE:APPLEPAY — Use Apple Pay on supported devices via the hosted checkout. Opening the payment page does not mark the order paid until the processor confirms.",
+        isActive: true,
+      },
+      {
+        slot: 3,
+        name: "Google Pay",
+        iconUrl: "/images/pay-gpay.svg",
+        paymentUrl: "https://checkout.stripe.com",
+        buttonText: "Pay with Google Pay",
+        instructions:
+          "WAYCODE:GOOGLEPAY — Use Google Pay via hosted checkout when available. Never share passwords or OTPs with support.",
+        isActive: true,
+      },
+      {
+        slot: 4,
         name: "Cash App",
         iconUrl: "/images/pay-cashapp.svg",
         paymentUrl: "https://www.ggusonepay.com",
         buttonText: "Pay with Cash App",
         instructions:
-          "WAYCODE:CASHAPP — Pay the exact order total shown at checkout. Include your Order ID in the payment note. Your order stays Payment Pending until our team confirms payment. Voltora never asks for your Cash App PIN or login credentials.",
-        isActive: true,
-      },
-      {
-        slot: 2,
-        name: "Google Pay",
-        iconUrl: "/images/pay-gpay.svg",
-        paymentUrl: "https://www.ggusonepay.com",
-        buttonText: "Pay with Google Pay",
-        instructions:
-          "WAYCODE:GOOGLEPAY — Complete payment for the exact amount shown. Do not share passwords, OTPs, or verification codes with anyone. Order status updates after manual confirmation.",
-        isActive: true,
-      },
-      {
-        slot: 3,
-        name: "Apple Pay",
-        iconUrl: "/images/pay-applepay.svg",
-        paymentUrl: "https://www.ggusonepay.com",
-        buttonText: "Pay with Apple Pay",
-        instructions:
-          "WAYCODE:APPLEPAY — Use Apple Pay for the listed order total. Opening this link does not mark your order as paid. Reference your Order ID if prompted.",
-        isActive: true,
-      },
-      {
-        slot: 4,
-        name: "Chime",
-        iconUrl: "/images/pay-chime.svg",
-        paymentUrl: "https://www.ggusonepay.com",
-        buttonText: "Pay with Chime",
-        instructions:
-          "WAYCODE:CHIME — Send the exact order total and reference your Order ID in the transfer note. Voltora never asks for banking passwords or Chime login details.",
+          "WAYCODE:CASHAPP — Pay the exact order total and reference your Order ID. Not a cryptocurrency method. Order stays Payment Pending until confirmed.",
         isActive: true,
       },
     ],

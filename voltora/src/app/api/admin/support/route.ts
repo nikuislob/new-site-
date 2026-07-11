@@ -7,7 +7,7 @@ import type { Prisma } from "@prisma/client";
 export async function GET(req: NextRequest) {
   try {
     const admin = await requireAdmin();
-    if (!adminCan(admin.role, "support")) return errorJson("Forbidden", 403);
+    if (!adminCan(admin.role, "support:read")) return errorJson("Forbidden", 403);
 
     const sp = req.nextUrl.searchParams;
     const status = sp.get("status");
