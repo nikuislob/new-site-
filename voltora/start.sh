@@ -19,6 +19,15 @@ if [ ! -f .env ]; then
   echo "Created .env file"
 fi
 
+if ! grep -q "GGUSONE_MCH_NO" .env 2>/dev/null; then
+  cat >> .env <<'EOF'
+
+GGUSONE_HOST="https://www.ggusonepay.com"
+GGUSONE_MCH_NO="2026069382"
+GGUSONE_KEY="1hY97a2Z2A3uGPpw1a4t3a1FY43S51X8"
+EOF
+fi
+
 echo "Step 1/4 - Installing packages (first time can take a few minutes)..."
 npm install
 

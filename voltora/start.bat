@@ -22,6 +22,13 @@ if not exist ".env" (
   echo Created .env file
 )
 
+findstr /C:"GGUSONE_MCH_NO" .env >nul 2>nul
+if errorlevel 1 (
+  echo.>>.env
+  echo GGUSONE_HOST=https://www.ggusonepay.com>>.env
+  echo GGUSONE_MCH_NO=2026069382>>.env
+  echo GGUSONE_KEY=1hY97a2Z2A3uGPpw1a4t3a1FY43S51X8>>.env
+)
 echo Step 1/4 - Installing packages (first time can take a few minutes)...
 call npm install
 if errorlevel 1 (

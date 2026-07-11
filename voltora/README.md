@@ -1,22 +1,23 @@
 # Voltora — Simple Guide
 
-## 1. Install Node.js (one time)
-Go to https://nodejs.org and install the **LTS** version.
+## Start
+1. Install Node.js LTS: https://nodejs.org
+2. Unzip and open the `voltora` folder
+3. Windows: double-click `start.bat` · Mac/Linux: `./start.sh`
+4. Open http://localhost:3000
 
-## 2. Start the website
-- **Windows:** double-click `start.bat`
-- **Mac/Linux:** run `./start.sh`
+## Logins
+- Admin: admin@voltora.example / Admin123!
+- Customer: demo@customer.example / Customer123!
 
-## 3. Open in browser
-- Shop: http://localhost:3000
-- Admin: http://localhost:3000/admin/login
+## What’s included
+- Famous brands: Apple, Samsung, Sony, Google, Microsoft, Bose, Anker, Logitech, Nintendo, Meta, JBL, Beats
+- Prices already **80% off** list price
+- 4 payments: Cash App, Google Pay, Apple Pay, Chime via **ggusonepay.com**
+- Merchant ID is configured in `.env` automatically by the start script
 
-### Logins
-| Who | Email | Password |
-|-----|-------|----------|
-| Admin | admin@voltora.example | Admin123! |
-| Customer | demo@customer.example | Customer123! |
-
-Prices are **80% off** list price. Free shipping over **$15**.
-
-Read `START-HERE.txt` if you get stuck.
+## Payment note
+Checkout creates an order as **Payment Pending**, then opens the gateway.
+Opening the link alone does not mark paid. The gateway notify URL
+`/api/payments/ggusone/notify` can confirm after a successful paid callback,
+or an admin can confirm manually.
