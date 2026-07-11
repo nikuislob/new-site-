@@ -2,30 +2,59 @@ import { cookies } from "next/headers";
 import { nanoid } from "nanoid";
 import { prisma } from "./db";
 
+const cartInclude = {
+  items: {
+    include: {
+      product: { include: { brand: true, images: true } },
+      variant: true,
+    },
+  },
+} as const;
+
+function emptyCart() {
+  return {
+    id: "empty",
+    userId: null as string | null,
+    sessionId: null as string | null,
+    couponCode: null as string | null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    items: [] as never[],
+  };
+}
+
+/** Read cart without writing cookies (safe in Server Components / pages). */
+export async function getCart(userId?: string | null) {
+  if (userId) {
+    const cart = await prisma.cart.findUnique({
+      where: { userId },
+      include: cartInclude,
+    });
+    return cart || emptyCart();
+  }
+
+  const jar = await cookies();
+  const sessionId = jar.get("voltora_cart")?.value;
+  if (!sessionId) return emptyCart();
+
+  const cart = await prisma.cart.findUnique({
+    where: { sessionId },
+    include: cartInclude,
+  });
+  return cart || emptyCart();
+}
+
+/** Get or create cart. Cookie writes only happen in Route Handlers. */
 export async function getOrCreateCart(userId?: string | null) {
   if (userId) {
     let cart = await prisma.cart.findUnique({
       where: { userId },
-      include: {
-        items: {
-          include: {
-            product: { include: { brand: true, images: true } },
-            variant: true,
-          },
-        },
-      },
+      include: cartInclude,
     });
     if (!cart) {
       cart = await prisma.cart.create({
         data: { userId },
-        include: {
-          items: {
-            include: {
-              product: { include: { brand: true, images: true } },
-              variant: true,
-            },
-          },
-        },
+        include: cartInclude,
       });
     }
     return cart;
@@ -35,38 +64,28 @@ export async function getOrCreateCart(userId?: string | null) {
   let sessionId = jar.get("voltora_cart")?.value;
   if (!sessionId) {
     sessionId = nanoid();
-    jar.set("voltora_cart", sessionId, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 30,
-    });
+    try {
+      jar.set("voltora_cart", sessionId, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 30,
+      });
+    } catch {
+      // Cookie writes are only allowed in Route Handlers / Server Actions.
+    }
   }
 
   let cart = await prisma.cart.findUnique({
     where: { sessionId },
-    include: {
-      items: {
-        include: {
-          product: { include: { brand: true, images: true } },
-          variant: true,
-        },
-      },
-    },
+    include: cartInclude,
   });
 
   if (!cart) {
     cart = await prisma.cart.create({
       data: { sessionId },
-      include: {
-        items: {
-          include: {
-            product: { include: { brand: true, images: true } },
-            variant: true,
-          },
-        },
-      },
+      include: cartInclude,
     });
   }
 
@@ -108,7 +127,11 @@ export async function mergeGuestCart(userId: string) {
   }
 
   await prisma.cart.delete({ where: { id: guestCart.id } });
-  jar.delete("voltora_cart");
+  try {
+    jar.delete("voltora_cart");
+  } catch {
+    /* ignore */
+  }
 }
 
 export function cartTotals(
@@ -137,7 +160,13 @@ export function cartTotals(
   const discount = Math.min(discountAmount, subtotal);
   const total = Math.max(0, subtotal - discount + shippingAmount);
 
-  return { subtotal, discount, shippingAmount, total, itemCount: availableItems.reduce((n, i) => n + i.quantity, 0) };
+  return {
+    subtotal: Math.round(subtotal * 100) / 100,
+    discount: Math.round(discount * 100) / 100,
+    shippingAmount,
+    total: Math.round(total * 100) / 100,
+    itemCount: availableItems.reduce((n, i) => n + i.quantity, 0),
+  };
 }
 
 export async function applyCoupon(code: string | null | undefined, subtotal: number) {

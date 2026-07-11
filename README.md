@@ -1,18 +1,15 @@
-# Voltora E-Commerce Platform
+# Voltora Website
 
-Complete production-ready US electronics marketplace.
+## How to use (simple)
 
-**Project directory:** [`voltora/`](./voltora/)
+1. Download / unzip the project
+2. Install Node.js from https://nodejs.org
+3. Open the `voltora` folder
+4. Windows: double-click `start.bat`  
+   Mac/Linux: run `./start.sh`
+5. Open http://localhost:3000
 
-```bash
-cd voltora
-npm install
-npx prisma db push
-npm run db:seed
-npm run dev
-```
+**Admin login:** admin@voltora.example / Admin123!  
+**Customer login:** demo@customer.example / Customer123!
 
-- Store: http://localhost:3000  
-- Admin: http://localhost:3000/admin/login  
-
-See [`voltora/README.md`](./voltora/README.md) for full documentation, demo credentials, and deployment notes.
+Zip file: `DOWNLOAD-Voltora-Website.zip`
