@@ -1,6 +1,9 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { nanoid } from "nanoid";
+import { customAlphabet } from "nanoid";
+
+/** Alphanumeric only — avoids `_`/`-` from default nanoid alphabet in order IDs. */
+const orderIdAlphabet = customAlphabet("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ", 8);
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -32,7 +35,7 @@ export function generateOrderNumber(): string {
   const y = date.getFullYear().toString().slice(-2);
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
-  return `VT${y}${m}${d}-${nanoid(8).toUpperCase()}`;
+  return `VT${y}${m}${d}-${orderIdAlphabet()}`;
 }
 
 export function parseJsonArray(value: string | null | undefined): string[] {

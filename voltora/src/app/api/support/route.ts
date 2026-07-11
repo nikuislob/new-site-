@@ -49,6 +49,16 @@ export async function POST(req: NextRequest) {
 
     let conversationId = parsed.data.conversationId;
 
+    // Validate order ownership when linking an order
+    if (parsed.data.orderId) {
+      const linked = await prisma.order.findUnique({ where: { id: parsed.data.orderId } });
+      if (!linked) return errorJson("Order not found", 404);
+      const ownsOrder =
+        (user && linked.userId === user.id) ||
+        (!!guestEmail && linked.customerEmail === guestEmail);
+      if (!ownsOrder) return errorJson("You can only link your own orders", 403);
+    }
+
     if (conversationId) {
       const existing = await prisma.conversation.findFirst({
         where: {

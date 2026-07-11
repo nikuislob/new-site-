@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { getOrCreateCart, cartTotals, applyCoupon } from "@/lib/cart";
+import { getCart, cartTotals, applyCoupon } from "@/lib/cart";
 import { getSettings } from "@/lib/settings";
 import { getCurrentCustomer } from "@/lib/auth";
 import { CheckoutForm } from "@/components/checkout/CheckoutForm";
@@ -15,7 +15,7 @@ export const metadata = {
 
 export default async function CheckoutPage() {
   const user = await getCurrentCustomer();
-  const cart = await getOrCreateCart(user?.id);
+  const cart = await getCart(user?.id);
 
   if (cart.items.length === 0) {
     return (

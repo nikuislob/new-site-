@@ -112,17 +112,17 @@ export function CartView() {
 
   const applyCoupon = async () => {
     try {
-      const res = await fetch("/api/cart", {
-        method: "PATCH",
+      const res = await fetch("/api/cart/coupon", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ couponCode: coupon || null }),
+        body: JSON.stringify({ code: coupon || "" }),
       });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Invalid coupon");
-      }
-      const data = await res.json();
-      setCart(data);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Invalid coupon");
+      // Reload full cart totals
+      const cartRes = await fetch("/api/cart");
+      const cartData = await cartRes.json();
+      setCart(cartData);
       toast("Coupon applied", "success");
     } catch (e) {
       toast(e instanceof Error ? e.message : "Invalid coupon", "error");

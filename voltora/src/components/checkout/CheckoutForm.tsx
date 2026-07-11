@@ -49,10 +49,21 @@ interface CheckoutFormProps {
 type Step = "info" | "review" | "payment";
 
 interface CreatedOrder {
+  id: string;
   orderNumber: string;
   total: number;
   paymentStatus: string;
   status: string;
+  accessToken?: string;
+}
+
+async function readJson(res: Response) {
+  const text = await res.text();
+  try {
+    return text ? JSON.parse(text) : {};
+  } catch {
+    throw new Error(text || "Invalid server response");
+  }
 }
 
 export function CheckoutForm({
@@ -65,8 +76,12 @@ export function CheckoutForm({
   const { toast } = useToast();
   const [step, setStep] = useState<Step>("info");
   const [loading, setLoading] = useState(false);
+  const [paying, setPaying] = useState(false);
   const [order, setOrder] = useState<CreatedOrder | null>(null);
-  const [selectedMethodId, setSelectedMethodId] = useState<string | null>(null);
+  const [selectedMethodId, setSelectedMethodId] = useState<string | null>(
+    paymentMethods[0]?.id || null
+  );
+  const [payHint, setPayHint] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     customerName: defaultName,
@@ -85,27 +100,40 @@ export function CheckoutForm({
   const update = (field: string, value: string) => setForm((f) => ({ ...f, [field]: value }));
 
   const createOrder = async () => {
+    if (!form.customerName || !form.customerEmail || !form.shippingLine1 || !form.shippingCity || !form.shippingZip) {
+      toast("Please fill all required shipping fields", "error");
+      return;
+    }
     setLoading(true);
     try {
-      const res = await fetch("/api/orders", {
+      const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Could not create order");
+      const data = await readJson(res);
+      if (!res.ok) throw new Error(data.error || "Could not create order");
+      const o = data.order || data;
+      const accessToken = data.accessToken as string | undefined;
+      if (accessToken) {
+        try {
+          sessionStorage.setItem(`voltora_order_token_${o.orderNumber}`, accessToken);
+          sessionStorage.setItem(`voltora_order_email_${o.orderNumber}`, form.customerEmail.toLowerCase());
+        } catch {
+          /* ignore */
+        }
       }
-      const data = await res.json();
       setOrder({
-        orderNumber: data.orderNumber,
-        total: data.total,
-        paymentStatus: data.paymentStatus || "PENDING",
-        status: data.status || "PAYMENT_PENDING",
+        id: o.id,
+        orderNumber: o.orderNumber,
+        total: o.total,
+        paymentStatus: o.paymentStatus || "PENDING",
+        status: o.status || "PAYMENT_PENDING",
+        accessToken,
       });
       setStep("payment");
       window.dispatchEvent(new Event("voltora:cart-updated"));
-      toast("Order created — payment pending", "success");
+      toast("Order created — choose a payment method", "success");
     } catch (e) {
       toast(e instanceof Error ? e.message : "Checkout failed", "error");
     } finally {
@@ -115,13 +143,55 @@ export function CheckoutForm({
 
   const selectedMethod = paymentMethods.find((m) => m.id === selectedMethodId);
 
-  const openPayment = (sameWindow = false) => {
+  const startPayment = async (sameWindow = false) => {
     if (!selectedMethod || !order) return;
-    const url = selectedMethod.paymentUrl;
-    if (sameWindow) {
-      window.location.href = url;
-    } else {
-      window.open(url, "_blank", "noopener,noreferrer");
+    setPaying(true);
+    setPayHint(null);
+    try {
+      let accessToken = order.accessToken;
+      try {
+        accessToken =
+          accessToken ||
+          sessionStorage.getItem(`voltora_order_token_${order.orderNumber}`) ||
+          undefined;
+      } catch {
+        /* ignore */
+      }
+      const res = await fetch(`/api/orders/${order.id}/payment`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-guest-email": form.customerEmail,
+          ...(accessToken ? { "x-order-token": accessToken } : {}),
+        },
+        body: JSON.stringify({
+          paymentMethodId: selectedMethod.id,
+          accessToken,
+          guestEmail: form.customerEmail,
+        }),
+      });
+      const data = await readJson(res);
+      if (!res.ok) throw new Error(data.error || "Could not start payment");
+
+      if (data.gatewayMsg) setPayHint(data.gatewayMsg);
+
+      const url = data.paymentUrl || selectedMethod.paymentUrl;
+      if (!url || !String(url).startsWith("http")) {
+        throw new Error("No valid payment URL returned");
+      }
+
+      const track = `/order/${order.orderNumber}?email=${encodeURIComponent(form.customerEmail)}&token=${accessToken || ""}`;
+      toast("Opening payment… order stays Pending until confirmed", "info");
+      if (sameWindow) window.location.href = url;
+      else {
+        window.open(url, "_blank", "noopener,noreferrer");
+        // Keep tracking link available
+        void track;
+      }
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Payment start failed", "error");
+    } finally {
+      setPaying(false);
     }
   };
 
@@ -156,22 +226,22 @@ export function CheckoutForm({
           <div className="card-surface space-y-4 p-5 animate-fade-up">
             <h2 className="font-display text-xl font-semibold">Shipping information</h2>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Input label="Full name" value={form.customerName} onChange={(e) => update("customerName", e.target.value)} required />
-              <Input label="Email" type="email" value={form.customerEmail} onChange={(e) => update("customerEmail", e.target.value)} required />
+              <Input label="Full name *" value={form.customerName} onChange={(e) => update("customerName", e.target.value)} required />
+              <Input label="Email *" type="email" value={form.customerEmail} onChange={(e) => update("customerEmail", e.target.value)} required />
               <Input label="Phone" value={form.customerPhone} onChange={(e) => update("customerPhone", e.target.value)} />
               <Input label="Coupon code" value={form.couponCode} onChange={(e) => update("couponCode", e.target.value.toUpperCase())} />
             </div>
-            <Input label="Address line 1" value={form.shippingLine1} onChange={(e) => update("shippingLine1", e.target.value)} required />
+            <Input label="Address line 1 *" value={form.shippingLine1} onChange={(e) => update("shippingLine1", e.target.value)} required />
             <Input label="Address line 2" value={form.shippingLine2} onChange={(e) => update("shippingLine2", e.target.value)} />
             <div className="grid gap-4 sm:grid-cols-3">
-              <Input label="City" value={form.shippingCity} onChange={(e) => update("shippingCity", e.target.value)} required />
+              <Input label="City *" value={form.shippingCity} onChange={(e) => update("shippingCity", e.target.value)} required />
               <Select
                 label="State"
                 value={form.shippingState}
                 onChange={(e) => update("shippingState", e.target.value)}
                 options={US_STATES.map((s) => ({ value: s, label: s }))}
               />
-              <Input label="ZIP code" value={form.shippingZip} onChange={(e) => update("shippingZip", e.target.value)} required />
+              <Input label="ZIP code *" value={form.shippingZip} onChange={(e) => update("shippingZip", e.target.value)} required />
             </div>
             <Textarea label="Order notes (optional)" value={form.customerNotes} onChange={(e) => update("customerNotes", e.target.value)} />
             <Button onClick={() => setStep("review")} className="mt-2">
@@ -215,7 +285,7 @@ export function CheckoutForm({
                     Amount due: <strong className="text-[var(--ink)]">{formatCurrency(order.total)}</strong>
                   </p>
                   <p className="mt-2 text-sm font-semibold text-[var(--warning)]">
-                    Payment status: Payment Pending — your order is not paid until our team confirms receipt.
+                    Status: Payment Pending until the payment provider notifies us or an admin confirms.
                   </p>
                 </div>
               </div>
@@ -227,62 +297,62 @@ export function CheckoutForm({
                 Select payment method
               </h2>
               <p className="mt-1 text-sm text-[var(--ink-muted)]">
-                Choose an active method below. Completing an external payment does not automatically mark your order as paid.
+                Cash App · Google Pay · Apple Pay · Chime (via secure payment gateway).
               </p>
 
               <div className="mt-4 space-y-3">
-                {paymentMethods.length === 0 ? (
-                  <p className="text-sm text-[var(--danger)]">No payment methods are currently available.</p>
-                ) : (
-                  paymentMethods.map((method) => (
-                    <label
-                      key={method.id}
-                      className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-4 transition ${
-                        selectedMethodId === method.id
-                          ? "border-[var(--brand)] bg-[var(--brand-soft)]"
-                          : "border-[var(--line)] hover:border-[#b8c7db]"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="paymentMethod"
-                        value={method.id}
-                        checked={selectedMethodId === method.id}
-                        onChange={() => setSelectedMethodId(method.id)}
-                        className="accent-[var(--brand)]"
-                      />
-                      {method.iconUrl ? (
-                        <Image src={method.iconUrl} alt="" width={32} height={32} className="h-8 w-8 object-contain" />
+                {paymentMethods.map((method) => (
+                  <label
+                    key={method.id}
+                    className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-4 transition ${
+                      selectedMethodId === method.id
+                        ? "border-[var(--brand)] bg-[var(--brand-soft)]"
+                        : "border-[var(--line)] hover:border-[#b8c7db]"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value={method.id}
+                      checked={selectedMethodId === method.id}
+                      onChange={() => setSelectedMethodId(method.id)}
+                      className="accent-[var(--brand)]"
+                    />
+                    {method.iconUrl ? (
+                      <Image src={method.iconUrl} alt="" width={32} height={32} className="h-8 w-8 object-contain" />
+                    ) : null}
+                    <div className="flex-1">
+                      <p className="font-semibold">{method.name}</p>
+                      {method.instructions ? (
+                        <p className="mt-0.5 text-xs text-[var(--ink-muted)]">{method.instructions.replace(/WAYCODE:[A-Z0-9_]+/gi, "").trim()}</p>
                       ) : null}
-                      <div className="flex-1">
-                        <p className="font-semibold">{method.name}</p>
-                        {method.instructions ? (
-                          <p className="mt-0.5 text-xs text-[var(--ink-muted)]">{method.instructions}</p>
-                        ) : null}
-                      </div>
-                    </label>
-                  ))
-                )}
+                    </div>
+                  </label>
+                ))}
               </div>
 
               {selectedMethod ? (
                 <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                  <Button onClick={() => openPayment(false)} disabled={!selectedMethod}>
+                  <Button loading={paying} onClick={() => startPayment(false)}>
                     <ExternalLink className="h-4 w-4" />
                     {selectedMethod.buttonText}
                   </Button>
-                  <Button variant="secondary" onClick={() => openPayment(true)}>
+                  <Button variant="secondary" loading={paying} onClick={() => startPayment(true)}>
                     Pay in this window
                   </Button>
                 </div>
               ) : null}
 
+              {payHint ? <p className="mt-3 text-xs text-[var(--warning)]">{payHint}</p> : null}
+
               <p className="mt-4 text-xs text-[var(--ink-muted)]">
-                Track your order anytime at{" "}
-                <a href={`/order/${order.orderNumber}`} className="font-semibold text-[var(--brand-deep)] underline">
+                Track order:{" "}
+                <a
+                  href={`/order/${order.orderNumber}?email=${encodeURIComponent(form.customerEmail)}&token=${order.accessToken || ""}`}
+                  className="font-semibold text-[var(--brand-deep)] underline"
+                >
                   /order/{order.orderNumber}
                 </a>
-                . Status remains Payment Pending until manually confirmed by Voltora.
               </p>
             </div>
           </div>

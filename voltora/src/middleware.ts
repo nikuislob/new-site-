@@ -1,15 +1,30 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { jwtVerify } from "jose";
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (pathname.startsWith("/admin") && !pathname.startsWith("/admin/login")) {
-    const session = request.cookies.get("voltora_admin_session");
-    if (!session?.value) {
-      const loginUrl = new URL("/admin/login", request.url);
-      loginUrl.searchParams.set("redirect", pathname);
+    const token = request.cookies.get("voltora_admin_session")?.value;
+    if (!token) {
+      const loginUrl = request.nextUrl.clone();
+      loginUrl.pathname = "/admin/login";
+      loginUrl.searchParams.set("next", pathname);
       return NextResponse.redirect(loginUrl);
+    }
+    try {
+      const secret = new TextEncoder().encode(
+        process.env.ADMIN_AUTH_SECRET || "dev-admin-secret-not-for-production"
+      );
+      const { payload } = await jwtVerify(token, secret);
+      if (payload.typ !== "admin") throw new Error("invalid");
+    } catch {
+      const loginUrl = request.nextUrl.clone();
+      loginUrl.pathname = "/admin/login";
+      const res = NextResponse.redirect(loginUrl);
+      res.cookies.delete("voltora_admin_session");
+      return res;
     }
   }
 

@@ -1,11 +1,14 @@
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import { prisma } from "@/lib/db";
+import { getCurrentCustomer } from "@/lib/auth";
+import { verifyGuestOrderToken } from "@/lib/payments/providers";
 import { formatCurrency } from "@/lib/format";
 import { AlertCircle, Package } from "lucide-react";
 
 interface PageProps {
   params: Promise<{ orderNumber: string }>;
+  searchParams: Promise<{ email?: string; token?: string }>;
 }
 
 export async function generateMetadata({ params }: PageProps) {
@@ -26,13 +29,39 @@ const STATUS_STEPS = [
   "DELIVERED",
 ];
 
-export default async function PublicOrderPage({ params }: PageProps) {
+export default async function PublicOrderPage({ params, searchParams }: PageProps) {
   const { orderNumber } = await params;
+  const sp = await searchParams;
+  const user = await getCurrentCustomer();
+
   const order = await prisma.order.findUnique({
     where: { orderNumber },
     include: { items: true },
   });
   if (!order) notFound();
+
+  const email = (sp.email || "").toLowerCase();
+  const token = sp.token || "";
+  const allowed =
+    (user && order.userId === user.id) ||
+    (email && token && order.customerEmail === email && verifyGuestOrderToken(order.orderNumber, email, token));
+
+  if (!allowed) {
+    return (
+      <div className="container-page py-16">
+        <div className="mx-auto max-w-lg rounded-[var(--radius)] border border-[var(--line)] bg-white p-8 text-center">
+          <h1 className="font-display text-2xl font-bold">Order access required</h1>
+          <p className="mt-3 text-sm text-[var(--ink-muted)]">
+            Sign in to the account that placed this order, or open the secure tracking link from your checkout confirmation.
+            Order details are not public.
+          </p>
+          <a href="/account/login" className="btn btn-primary mt-6 inline-flex">
+            Sign in
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   const currentStep = STATUS_STEPS.indexOf(order.status);
 
@@ -56,66 +85,64 @@ export default async function PublicOrderPage({ params }: PageProps) {
               Status: {order.status.replace(/_/g, " ")}
             </p>
             <p className="mt-1 font-semibold text-[var(--warning)]">
-              Payment: {order.paymentStatus} — orders remain Payment Pending until manually confirmed by Voltora.
+              Payment: {order.paymentStatus}
             </p>
           </div>
         </div>
 
-        <div className="mt-8 card-surface p-5">
-          <h2 className="font-display font-semibold">Fulfillment progress</h2>
-          <ol className="mt-4 space-y-3">
-            {STATUS_STEPS.map((step, i) => (
-              <li key={step} className="flex items-center gap-3 text-sm">
-                <span
-                  className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-                    i <= currentStep ? "bg-[var(--brand)] text-[#04241f]" : "bg-[var(--surface)] text-[var(--ink-muted)]"
-                  }`}
-                >
-                  {i + 1}
-                </span>
-                <span className={i <= currentStep ? "font-medium" : "text-[var(--ink-muted)]"}>
-                  {step.replace(/_/g, " ")}
-                </span>
-              </li>
-            ))}
-          </ol>
-          {order.trackingNumber ? (
-            <p className="mt-4 text-sm">
-              Tracking: <strong>{order.shippingCarrier || "Carrier"}</strong> — {order.trackingNumber}
-            </p>
-          ) : null}
+        <div className="mt-8 flex flex-wrap gap-2">
+          {STATUS_STEPS.map((step, i) => (
+            <span
+              key={step}
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                i <= currentStep ? "bg-[var(--brand-soft)] text-[#067260]" : "bg-[var(--surface)] text-[var(--ink-muted)]"
+              }`}
+            >
+              {step.replace(/_/g, " ")}
+            </span>
+          ))}
         </div>
 
-        <div className="mt-6 card-surface p-5">
-          <h2 className="font-display font-semibold">Items</h2>
-          <ul className="mt-4 space-y-3">
-            {order.items.map((item: (typeof order.items)[number]) => (
-              <li key={item.id} className="flex gap-3 text-sm">
-                {item.imageUrl ? (
-                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg">
-                    <Image src={item.imageUrl} alt="" fill className="object-cover" sizes="48px" />
-                  </div>
-                ) : null}
-                <div className="flex-1">
-                  <p className="font-medium">{item.productName}</p>
-                  <p className="text-[var(--ink-muted)]">Qty {item.quantity}</p>
+        <ul className="mt-8 space-y-3">
+          {order.items.map((item) => (
+            <li key={item.id} className="flex gap-3 rounded-xl border border-[var(--line)] p-3">
+              {item.imageUrl ? (
+                <div className="relative h-16 w-16 overflow-hidden rounded-lg">
+                  <Image src={item.imageUrl} alt="" fill className="object-cover" sizes="64px" />
                 </div>
-                <span className="font-semibold">{formatCurrency(item.lineTotal)}</span>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-4 border-t border-[var(--line)] pt-4 text-right font-display text-xl font-bold">
-            Total: {formatCurrency(order.total)}
-          </div>
-        </div>
+              ) : null}
+              <div className="flex-1">
+                <p className="font-medium">{item.productName}</p>
+                <p className="text-xs text-[var(--ink-muted)]">
+                  {item.variantName || item.productSku} · Qty {item.quantity}
+                </p>
+              </div>
+              <span className="font-semibold">{formatCurrency(item.lineTotal)}</span>
+            </li>
+          ))}
+        </ul>
 
-        <div className="mt-6 text-sm text-[var(--ink-muted)]">
-          <p className="font-semibold text-[var(--ink)]">Shipping address</p>
-          <p className="mt-1">
-            {order.customerName}<br />
-            {order.shippingLine1}<br />
-            {order.shippingCity}, {order.shippingState} {order.shippingZip}
-          </p>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <div className="rounded-xl border border-[var(--line)] p-4 text-sm">
+            <p className="font-semibold">Shipping</p>
+            <p className="mt-2 text-[var(--ink-muted)]">
+              {order.customerName}
+              <br />
+              {order.shippingLine1}
+              {order.shippingLine2 ? <>, {order.shippingLine2}</> : null}
+              <br />
+              {order.shippingCity}, {order.shippingState} {order.shippingZip}
+            </p>
+          </div>
+          <div className="rounded-xl border border-[var(--line)] p-4 text-sm">
+            <p className="font-semibold">Total paid / due</p>
+            <p className="mt-2 font-display text-2xl font-bold">{formatCurrency(order.total)}</p>
+            {order.trackingNumber ? (
+              <p className="mt-2 text-[var(--ink-muted)]">
+                Tracking: {order.shippingCarrier} {order.trackingNumber}
+              </p>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>

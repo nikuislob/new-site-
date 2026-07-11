@@ -22,8 +22,9 @@ import {
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { adminFetch } from "@/lib/admin-fetch";
+import { adminCan, type AdminRole } from "@/lib/admin-permissions";
 
-export type AdminRole = "SUPER_ADMIN" | "PRODUCT_MANAGER" | "ORDER_MANAGER" | "SUPPORT_AGENT";
+export type { AdminRole };
 
 export type AdminUser = {
   id: string;
@@ -34,27 +35,12 @@ export type AdminUser = {
   lastLoginAt?: string | null;
 };
 
-const ROLE_PERMISSIONS: Record<AdminRole, string[]> = {
-  SUPER_ADMIN: ["*"],
-  PRODUCT_MANAGER: ["products", "categories", "brands", "coupons", "content", "dashboard"],
-  ORDER_MANAGER: ["orders", "payments", "dashboard"],
-  SUPPORT_AGENT: ["support", "orders:read", "dashboard"],
-};
-
-function canAccess(role: AdminRole, permission: string) {
-  const perms = ROLE_PERMISSIONS[role] || [];
-  if (perms.includes("*")) return true;
-  if (perms.includes(permission)) return true;
-  const base = permission.split(":")[0];
-  return perms.includes(base);
-}
-
 const NAV_ITEMS = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "dashboard" },
   { href: "/admin/products", label: "Products", icon: Package, permission: "products" },
-  { href: "/admin/orders", label: "Orders", icon: ShoppingCart, permission: "orders" },
+  { href: "/admin/orders", label: "Orders", icon: ShoppingCart, permission: "orders:read" },
   { href: "/admin/payments", label: "Payments", icon: CreditCard, permission: "payments" },
-  { href: "/admin/support", label: "Support", icon: MessageSquare, permission: "support" },
+  { href: "/admin/support", label: "Support", icon: MessageSquare, permission: "support:read" },
   { href: "/admin/categories", label: "Categories", icon: FolderTree, permission: "categories" },
   { href: "/admin/brands", label: "Brands", icon: Tag, permission: "brands" },
   { href: "/admin/coupons", label: "Coupons", icon: Ticket, permission: "coupons" },
@@ -76,7 +62,7 @@ export function AdminShell({ admin, children }: AdminShellProps) {
 
   const visibleNav = NAV_ITEMS.filter((item) => {
     if ("superOnly" in item && item.superOnly) return admin.role === "SUPER_ADMIN";
-    if ("permission" in item) return canAccess(admin.role, item.permission);
+    if ("permission" in item) return adminCan(admin.role, item.permission);
     return true;
   });
 
@@ -139,7 +125,6 @@ export function AdminShell({ admin, children }: AdminShellProps) {
 
   return (
     <div className="min-h-screen bg-[#0b1220] text-[#e8edf5]">
-      {/* Mobile overlay */}
       {mobileOpen ? (
         <button
           type="button"
@@ -149,7 +134,6 @@ export function AdminShell({ admin, children }: AdminShellProps) {
         />
       ) : null}
 
-      {/* Sidebar */}
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-50 w-64 border-r border-[#1e2d45] bg-[#0b1220] transition-transform lg:translate-x-0",
@@ -167,7 +151,6 @@ export function AdminShell({ admin, children }: AdminShellProps) {
         {sidebar}
       </aside>
 
-      {/* Main */}
       <div className="lg:pl-64">
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-[#1e2d45] bg-[#0b1220]/95 px-4 py-3 backdrop-blur sm:px-6">
           <button

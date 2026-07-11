@@ -1,0 +1,47 @@
+========================================
+  VOLTORA - SIMPLE START (FOR BEGINNERS)
+========================================
+
+You need Node.js installed first:
+https://nodejs.org  (download the LTS version, click Next/Next/Install)
+
+----------------------------------------
+WINDOWS
+----------------------------------------
+1. Unzip this folder
+2. Double-click:  start.bat
+3. Wait until you see "Ready"
+4. Open Chrome and go to:  http://localhost:3000
+
+----------------------------------------
+MAC / LINUX
+----------------------------------------
+1. Unzip this folder
+2. Open Terminal in this folder
+3. Run:  chmod +x start.sh && ./start.sh
+4. Open browser:  http://localhost:3000
+
+----------------------------------------
+LOGIN DETAILS
+----------------------------------------
+Website:   http://localhost:3000
+Admin:     http://localhost:3000/admin/login
+
+Admin email:     admin@voltora.example
+Admin password:  Admin123!
+
+Customer email:     demo@customer.example
+Customer password:  Customer123!
+
+----------------------------------------
+IF SOMETHING FAILS
+----------------------------------------
+- Make sure Node.js is installed: open terminal and type  node -v
+- Delete the folder "node_modules" if it exists, then run start again
+- Do not close the terminal/window while the site is running
+- To stop the site: press Ctrl + C in the terminal
+
+Prices are already set 80% lower than list price.
+
+Payment credentials (Stripe / gateway) go in the .env file — never share keys.
+See README.md and DELIVERY-REPORT.md for full setup.
