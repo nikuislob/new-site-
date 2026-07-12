@@ -44,4 +44,11 @@ Required Hostinger env vars (Website → Deployments → Environment):
 
 ## DNS note
 
-Nameservers were switched from Cloudflare to Hostinger. Global DNS can take up to 24 hours. Until then, some resolvers may still show Cloudflare NS.
+Nameservers were switched from Cloudflare to Hostinger (`ns1.dns-parking.com` / `ns2.dns-parking.com`). Global DNS can take up to 24 hours. Until then, some resolvers may still show Cloudflare NS or NXDOMAIN.
+
+## Current deploy status (as of setup)
+
+- Next.js Node build: **completed** on Hostinger (app type `next`, Node 20)
+- Website status in hPanel: **Running** + SSL
+- First boot runs `prisma db push` and seeds demo data if the DB is empty
+- Public URL may not resolve until DNS propagation finishes
