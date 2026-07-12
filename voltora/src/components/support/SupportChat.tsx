@@ -1,181 +1,110 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { MessageCircle, Send, X } from "lucide-react";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
-import { Spinner } from "@/components/ui/Spinner";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ExternalLink, MessageCircle, Send, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface ChatMessage {
-  id: string;
-  body: string;
-  senderName: string;
-  senderType: string;
-  createdAt: string;
-}
-
-interface UserOrder {
-  id: string;
-  orderNumber: string;
-  status: string;
-  total: number;
-}
+type ChatMessage = { id: string; body: string; senderName: string; senderType: string; createdAt: string };
+type PaymentLink = { id: string; label: string; createdAt: string };
 
 export function SupportChat() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [paymentLinks, setPaymentLinks] = useState<PaymentLink[]>([]);
   const [body, setBody] = useState("");
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
-  const [orderId, setOrderId] = useState("");
-  const [orders, setOrders] = useState<UserOrder[]>([]);
-  const [user, setUser] = useState<{ firstName: string; email: string } | null>(null);
+  const [error, setError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    (async () => {
-      try {
-        const meRes = await fetch("/api/auth/me");
-        if (meRes.ok) {
-          const me = await meRes.json();
-          if (me.user) {
-            setUser(me.user);
-            setGuestName(`${me.user.firstName} ${me.user.lastName || ""}`.trim());
-            setGuestEmail(me.user.email);
-            const ordersRes = await fetch("/api/orders?mine=1");
-            if (ordersRes.ok) {
-              const data = await ordersRes.json();
-              setOrders(data.orders || []);
-            }
-          }
-        }
-      } catch {
-        /* guest mode */
-      }
-    })();
-  }, [open]);
+  const loadConversation = useCallback(async (id: string, email: string) => {
+    const response = await fetch(`/api/support/${id}?email=${encodeURIComponent(email)}`, { cache: "no-store" });
+    if (!response.ok) return;
+    const data = await response.json();
+    setMessages(data.conversation.messages || []);
+    setPaymentLinks(data.conversation.paymentLinks || []);
+    setGuestName(data.conversation.guestName || "");
+    setGuestEmail(data.conversation.guestEmail || email);
+  }, []);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    const query = new URLSearchParams(window.location.search);
+    const id = query.get("conversation");
+    const storedEmail = sessionStorage.getItem("pitchpass_support_email") || "";
+    if (id) {
+      setConversationId(id);
+      setGuestEmail(storedEmail);
+      setOpen(true);
+      void loadConversation(id, storedEmail);
+    }
+  }, [loadConversation]);
 
-  const sendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!body.trim()) return;
-    if (!user && (!guestName.trim() || !guestEmail.trim())) return;
+  useEffect(() => {
+    if (!open || !conversationId || !guestEmail) return;
+    const timer = window.setInterval(() => void loadConversation(conversationId, guestEmail), 5000);
+    return () => window.clearInterval(timer);
+  }, [open, conversationId, guestEmail, loadConversation]);
 
+  useEffect(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), [messages]);
+
+  async function sendMessage(event: React.FormEvent) {
+    event.preventDefault();
+    if (!body.trim() || (!conversationId && (!guestName.trim() || !guestEmail.trim()))) return;
     setLoading(true);
+    setError("");
     try {
-      const res = await fetch("/api/support", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          body: body.trim(),
-          conversationId: conversationId || undefined,
-          guestName: guestName.trim(),
-          guestEmail: guestEmail.trim(),
-          orderId: orderId || undefined,
-          subject: "Store support",
-        }),
-      });
-      if (!res.ok) throw new Error("Failed");
-      const data = await res.json();
-      setConversationId(data.conversationId);
-      setMessages(data.messages || []);
+      const response = conversationId
+        ? await fetch(`/api/support/${conversationId}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-guest-email": guestEmail },
+            body: JSON.stringify({ body: body.trim() }),
+          })
+        : await fetch("/api/support", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ body: body.trim(), guestName, guestEmail, subject: "PitchPass support" }),
+          });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Message could not be sent");
+      const id = conversationId || data.conversationId;
+      setConversationId(id);
+      setMessages((current) => [...current, data.message]);
       setBody("");
-    } catch {
-      /* ignore */
+      sessionStorage.setItem("pitchpass_support_email", guestEmail);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Message could not be sent");
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className={cn(
-          "fixed bottom-5 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--bg)] text-white shadow-[0_16px_40px_rgba(11,18,32,0.35)] transition hover:scale-105",
-          open && "pointer-events-none opacity-0"
-        )}
-        aria-label="Open support chat"
-      >
+      <button type="button" onClick={() => setOpen(true)} className={cn("fixed bottom-5 right-5 z-50 grid h-14 w-14 place-items-center rounded-full bg-[#09261c] text-white shadow-2xl transition hover:scale-105", open && "pointer-events-none opacity-0")} aria-label="Open PitchPass support">
         <MessageCircle className="h-6 w-6 text-[var(--brand)]" />
       </button>
-
       {open ? (
-        <div className="fixed bottom-5 right-5 z-50 flex h-[min(560px,80vh)] w-[min(380px,calc(100vw-2rem))] flex-col overflow-hidden rounded-[var(--radius)] border border-[var(--line)] bg-white shadow-2xl animate-fade-up">
-          <div className="flex items-center justify-between bg-[var(--bg)] px-4 py-3 text-white">
-            <div>
-              <p className="font-display font-semibold">Voltora Support</p>
-              <p className="text-xs text-[#9fb0cb]">US-based help · typically under 5 min</p>
-            </div>
-            <button type="button" onClick={() => setOpen(false)} aria-label="Close chat" className="rounded-full p-1.5 hover:bg-white/10">
-              <X className="h-4 w-4" />
-            </button>
+        <div className="fixed inset-x-3 bottom-3 z-50 flex h-[min(650px,88vh)] flex-col overflow-hidden rounded-[24px] border border-[#d8e5de] bg-white shadow-2xl sm:inset-x-auto sm:bottom-5 sm:right-5 sm:w-[400px]">
+          <div className="flex items-center justify-between bg-[#082018] px-5 py-4 text-white">
+            <div><p className="font-display font-bold">PitchPass Support</p><p className="mt-0.5 text-[11px] text-white/50">Order and payment assistance</p></div>
+            <button type="button" onClick={() => setOpen(false)} className="rounded-full p-2 hover:bg-white/10" aria-label="Close support"><X className="h-4 w-4" /></button>
           </div>
-
-          {!user ? (
-            <div className="grid gap-2 border-b border-[var(--line)] p-3">
-              <Input label="Your name" value={guestName} onChange={(e) => setGuestName(e.target.value)} className="text-sm" />
-              <Input label="Email" type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} className="text-sm" />
-            </div>
-          ) : orders.length > 0 ? (
-            <div className="border-b border-[var(--line)] p-3">
-              <Select
-                label="Related order (optional)"
-                value={orderId}
-                onChange={(e) => setOrderId(e.target.value)}
-                options={orders.map((o) => ({
-                  value: o.id,
-                  label: `${o.orderNumber} · ${o.status}`,
-                }))}
-                placeholder="Select an order"
-              />
-            </div>
-          ) : null}
-
+          {!conversationId ? <div className="grid gap-3 border-b border-[#e2ebe6] p-4"><label><span className="label">Your name</span><input className="input text-sm" value={guestName} onChange={(event) => setGuestName(event.target.value)} /></label><label><span className="label">Email address</span><input className="input text-sm" type="email" value={guestEmail} onChange={(event) => setGuestEmail(event.target.value)} /></label></div> : null}
           <div className="flex-1 space-y-3 overflow-y-auto p-4">
-            {messages.length === 0 ? (
-              <p className="text-center text-sm text-[var(--ink-muted)]">
-                Hi! Ask about orders, products, or delivery — we&apos;re here to help.
-              </p>
-            ) : (
-              messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={cn(
-                    "max-w-[85%] rounded-2xl px-3 py-2 text-sm",
-                    msg.senderType === "customer"
-                      ? "ml-auto bg-[var(--brand-soft)] text-[#067260]"
-                      : "bg-[var(--surface)] text-[var(--ink)]"
-                  )}
-                >
-                  <p className="text-[10px] font-semibold uppercase tracking-wide opacity-70">{msg.senderName}</p>
-                  <p className="mt-0.5">{msg.body}</p>
-                </div>
-              ))
-            )}
+            {!messages.length ? <div className="py-12 text-center"><MessageCircle className="mx-auto h-8 w-8 text-[#95a9a0]" /><p className="mt-3 text-sm font-semibold">How can we help?</p><p className="mt-1 text-xs text-[#778c83]">Ask about a match, booking, payment, or delivery.</p></div> : messages.map((message) => (
+              <div key={message.id} className={cn("max-w-[88%] rounded-2xl px-3.5 py-2.5 text-sm", message.senderType === "customer" ? "ml-auto bg-[#dff7ea] text-[#0f5f40]" : message.senderType === "system" ? "border border-[#dce8e2] bg-[#f5f8f6] text-[#526a60]" : "bg-[#0b2a1f] text-white")}>
+                <p className="text-[9px] font-bold uppercase tracking-wider opacity-60">{message.senderName}</p><p className="mt-1 whitespace-pre-wrap leading-5">{message.body}</p><p className="mt-1.5 text-[9px] opacity-50">{new Date(message.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</p>
+              </div>
+            ))}
+            {paymentLinks.map((link) => <a key={link.id} href={`/api/payment-links/${link.id}?email=${encodeURIComponent(guestEmail)}`} target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-2xl bg-[#35e89b] p-4 font-display text-sm font-bold text-[#062017]">{link.label}<ExternalLink className="h-4 w-4" /></a>)}
             <div ref={bottomRef} />
           </div>
-
-          <form onSubmit={sendMessage} className="flex gap-2 border-t border-[var(--line)] p-3">
-            <input
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder="Type your message..."
-              className="input flex-1 text-sm"
-              aria-label="Message"
-            />
-            <Button type="submit" disabled={loading || !body.trim()} className="px-3">
-              {loading ? <Spinner size="sm" className="border-[#04241f]" /> : <Send className="h-4 w-4" />}
-            </Button>
+          {error ? <p className="mx-4 mb-2 text-xs text-red-600">{error}</p> : null}
+          <form onSubmit={sendMessage} className="flex gap-2 border-t border-[#e2ebe6] p-3">
+            <input className="input flex-1 text-sm" value={body} onChange={(event) => setBody(event.target.value)} placeholder="Type a message…" aria-label="Support message" />
+            <button type="submit" disabled={loading || !body.trim()} className="grid h-11 w-11 place-items-center rounded-xl bg-[#09261c] text-[var(--brand)] disabled:opacity-50" aria-label="Send message"><Send className="h-4 w-4" /></button>
           </form>
         </div>
       ) : null}

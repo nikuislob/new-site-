@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Zap } from "lucide-react";
+import { Trophy } from "lucide-react";
 import { adminFetch, AdminApiError } from "@/lib/admin-fetch";
 
 export default function AdminLoginPage() {
@@ -36,10 +36,10 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#00c2a8]/15 text-[#00c2a8]">
-            <Zap className="h-7 w-7" aria-hidden />
+            <Trophy className="h-7 w-7" aria-hidden />
           </div>
-          <h1 className="font-display text-2xl font-bold text-white">Voltora Admin</h1>
-          <p className="mt-1 text-sm text-[#8b9cb8]">Sign in to manage your store</p>
+          <h1 className="font-display text-2xl font-bold text-white">PitchPass Admin</h1>
+          <p className="mt-1 text-sm text-[#8b9cb8]">Sign in to manage marketplace operations</p>
         </div>
 
         <form
@@ -67,7 +67,7 @@ export default function AdminLoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full rounded-lg border border-[#1e2d45] bg-[#0b1220] px-3 py-2.5 text-white placeholder:text-[#6b7d9a] focus:border-[#00c2a8] focus:outline-none focus:ring-1 focus:ring-[#00c2a8]"
-                placeholder="admin@voltora.example"
+                placeholder="admin@pitchpass.example"
               />
             </div>
 
@@ -99,7 +99,7 @@ export default function AdminLoginPage() {
 
         <div className="mt-6 rounded-xl border border-[#1e2d45]/60 bg-[#121a2b]/50 p-4 text-center text-sm text-[#8b9cb8]">
           <p className="font-medium text-[#c5d0e0]">Demo credentials</p>
-          <p className="mt-1 font-mono text-xs text-[#00c2a8]">admin@voltora.example</p>
+          <p className="mt-1 font-mono text-xs text-[#00c2a8]">admin@pitchpass.example</p>
           <p className="font-mono text-xs text-[#00c2a8]">Admin123!</p>
         </div>
       </div>

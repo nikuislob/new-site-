@@ -23,6 +23,8 @@ export async function GET(req: NextRequest, { params }: Params) {
       include: {
         messages: { orderBy: { createdAt: "asc" } },
         order: { select: { id: true, orderNumber: true } },
+        booking: { select: { id: true, reference: true, total: true, currency: true, paymentMethod: true } },
+        paymentLinks: { select: { id: true, label: true, createdAt: true }, orderBy: { createdAt: "asc" } },
       },
     });
 

@@ -7,8 +7,8 @@ import type { AdminUser, User } from "@prisma/client";
 
 export type AdminRole = "SUPER_ADMIN" | "PRODUCT_MANAGER" | "ORDER_MANAGER" | "SUPPORT_AGENT";
 
-const CUSTOMER_COOKIE = "voltora_session";
-const ADMIN_COOKIE = "voltora_admin_session";
+const CUSTOMER_COOKIE = "pitchpass_session";
+const ADMIN_COOKIE = "pitchpass_admin_session";
 
 function customerSecret() {
   return new TextEncoder().encode(process.env.AUTH_SECRET || "dev-secret");
@@ -235,8 +235,8 @@ export function publicAdmin(admin: AdminUser) {
 
 export const ROLE_PERMISSIONS: Record<AdminRole, string[]> = {
   SUPER_ADMIN: ["*"],
-  PRODUCT_MANAGER: ["products", "categories", "brands", "coupons", "content", "dashboard"],
-  ORDER_MANAGER: ["orders", "payments", "dashboard"],
+  PRODUCT_MANAGER: ["matches", "tickets", "content", "dashboard"],
+  ORDER_MANAGER: ["bookings", "payments", "deliveries", "dashboard"],
   SUPPORT_AGENT: ["support", "orders:read", "dashboard"],
 };
 

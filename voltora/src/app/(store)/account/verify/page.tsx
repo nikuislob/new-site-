@@ -14,7 +14,7 @@ export default function VerifyPage() {
         </div>
         <h1 className="font-display text-2xl font-bold">Check your inbox</h1>
         <p className="mt-3 text-sm leading-relaxed text-[var(--ink-muted)]">
-          We sent a verification link to your email. Click the link to activate your Voltora account.
+          We sent a verification link to your email. Click the link to activate your PitchPass account.
           The link may take a few minutes to arrive — check spam if needed.
         </p>
         <Link

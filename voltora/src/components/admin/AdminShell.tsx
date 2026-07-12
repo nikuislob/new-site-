@@ -4,20 +4,17 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
-  Package,
+  CalendarDays,
   ShoppingCart,
   CreditCard,
   MessageSquare,
-  FolderTree,
-  Tag,
-  Ticket,
-  FileText,
+  Armchair,
   Settings,
   Users,
   LogOut,
   Menu,
   X,
-  Zap,
+  Trophy,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -36,8 +33,8 @@ export type AdminUser = {
 
 const ROLE_PERMISSIONS: Record<AdminRole, string[]> = {
   SUPER_ADMIN: ["*"],
-  PRODUCT_MANAGER: ["products", "categories", "brands", "coupons", "content", "dashboard"],
-  ORDER_MANAGER: ["orders", "payments", "dashboard"],
+  PRODUCT_MANAGER: ["matches", "tickets", "content", "dashboard"],
+  ORDER_MANAGER: ["bookings", "payments", "deliveries", "dashboard"],
   SUPPORT_AGENT: ["support", "orders:read", "dashboard"],
 };
 
@@ -51,14 +48,11 @@ function canAccess(role: AdminRole, permission: string) {
 
 const NAV_ITEMS = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "dashboard" },
-  { href: "/admin/products", label: "Products", icon: Package, permission: "products" },
-  { href: "/admin/orders", label: "Orders", icon: ShoppingCart, permission: "orders" },
+  { href: "/admin/matches", label: "Matches", icon: CalendarDays, permission: "matches" },
+  { href: "/admin/tickets", label: "Ticket inventory", icon: Armchair, permission: "tickets" },
+  { href: "/admin/bookings", label: "Orders", icon: ShoppingCart, permission: "bookings" },
   { href: "/admin/payments", label: "Payments", icon: CreditCard, permission: "payments" },
   { href: "/admin/support", label: "Support", icon: MessageSquare, permission: "support" },
-  { href: "/admin/categories", label: "Categories", icon: FolderTree, permission: "categories" },
-  { href: "/admin/brands", label: "Brands", icon: Tag, permission: "brands" },
-  { href: "/admin/coupons", label: "Coupons", icon: Ticket, permission: "coupons" },
-  { href: "/admin/content", label: "Content", icon: FileText, permission: "content" },
   { href: "/admin/settings", label: "Settings", icon: Settings, permission: "content" },
   { href: "/admin/admins", label: "Admins", icon: Users, superOnly: true },
 ] as const;
@@ -97,10 +91,10 @@ export function AdminShell({ admin, children }: AdminShellProps) {
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-2 border-b border-[#1e2d45] px-5 py-5">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#00c2a8]/15 text-[#00c2a8]">
-          <Zap className="h-5 w-5" aria-hidden />
+          <Trophy className="h-5 w-5" aria-hidden />
         </div>
         <div>
-          <p className="font-display text-lg font-bold text-white">Voltora</p>
+          <p className="font-display text-lg font-bold text-white">PitchPass</p>
           <p className="text-xs text-[#8b9cb8]">Admin Panel</p>
         </div>
       </div>

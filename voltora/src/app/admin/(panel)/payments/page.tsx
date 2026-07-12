@@ -1,157 +1,22 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { adminFetch } from "@/lib/admin-fetch";
+import { formatMoney } from "@/lib/utils";
 
-type PaymentMethod = {
-  slot: number;
-  name: string;
-  iconUrl: string | null;
-  paymentUrl: string;
-  buttonText: string;
-  instructions: string | null;
-  isActive: boolean;
-};
-
-const emptySlot = (slot: number): PaymentMethod => ({
-  slot,
-  name: "",
-  iconUrl: "",
-  paymentUrl: "",
-  buttonText: "Pay Now",
-  instructions: "",
-  isActive: false,
-});
+type Payment = { id: string; provider: string; providerReference: string | null; idempotencyKey: string; status: string; amount: number; currency: string; errorMessage: string | null; createdAt: string; booking: { id: string; reference: string; customerEmail: string; match: { homeTeam: string; awayTeam: string } } };
 
 export default function PaymentsPage() {
-  const [methods, setMethods] = useState<PaymentMethod[]>([
-    emptySlot(1), emptySlot(2), emptySlot(3), emptySlot(4),
-  ]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState<number | null>(null);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [configured, setConfigured] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-
-  useEffect(() => {
-    async function load() {
-      try {
-        const data = await adminFetch<{ paymentMethods: PaymentMethod[] }>("/api/admin/payments");
-        setMethods(data.paymentMethods.map((m) => ({
-          ...m,
-          iconUrl: m.iconUrl || "",
-          instructions: m.instructions || "",
-        })));
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to load payment methods");
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
-
-  function updateSlot(slot: number, patch: Partial<PaymentMethod>) {
-    setMethods((prev) => prev.map((m) => (m.slot === slot ? { ...m, ...patch } : m)));
-  }
-
-  async function saveSlot(slot: number, e: FormEvent) {
-    e.preventDefault();
-    const method = methods.find((m) => m.slot === slot);
-    if (!method) return;
-
-    setSaving(slot);
-    setError("");
-    setSuccess("");
-
-    try {
-      await adminFetch("/api/admin/payments", {
-        method: "PUT",
-        body: JSON.stringify({
-          slot: method.slot,
-          name: method.name,
-          iconUrl: method.iconUrl || null,
-          paymentUrl: method.paymentUrl,
-          buttonText: method.buttonText,
-          instructions: method.instructions || null,
-          isActive: method.isActive,
-        }),
-      });
-      setSuccess(`Payment slot ${slot} saved.`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Save failed");
-    } finally {
-      setSaving(null);
-    }
-  }
-
-  const inputClass = "w-full rounded-lg border border-[#1e2d45] bg-[#0b1220] px-3 py-2 text-sm text-white focus:border-[#00c2a8] focus:outline-none";
-  const labelClass = "mb-1 block text-sm font-medium text-[#c5d0e0]";
-
-  if (loading) return <p className="text-[#8b9cb8]">Loading payment methods…</p>;
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-white">Payment methods</h1>
-        <p className="mt-1 text-sm text-[#8b9cb8]">Configure exactly 4 checkout payment slots</p>
-      </div>
-
-      {error ? <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300" role="alert">{error}</div> : null}
-      {success ? <div className="rounded-lg border border-teal-500/30 bg-teal-500/10 px-4 py-3 text-sm text-teal-300" role="status">{success}</div> : null}
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        {methods.map((method) => (
-          <form
-            key={method.slot}
-            onSubmit={(e) => saveSlot(method.slot, e)}
-            className="rounded-xl border border-[#1e2d45] bg-[#121a2b] p-5"
-          >
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-display text-lg font-semibold text-white">Slot {method.slot}</h2>
-              <label className="flex items-center gap-2 text-sm text-[#c5d0e0]">
-                <input
-                  type="checkbox"
-                  checked={method.isActive}
-                  onChange={(e) => updateSlot(method.slot, { isActive: e.target.checked })}
-                  className="accent-[#00c2a8]"
-                />
-                Active
-              </label>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label htmlFor={`name-${method.slot}`} className={labelClass}>Name *</label>
-                <input id={`name-${method.slot}`} required value={method.name} onChange={(e) => updateSlot(method.slot, { name: e.target.value })} className={inputClass} />
-              </div>
-              <div>
-                <label htmlFor={`icon-${method.slot}`} className={labelClass}>Icon URL</label>
-                <input id={`icon-${method.slot}`} value={method.iconUrl || ""} onChange={(e) => updateSlot(method.slot, { iconUrl: e.target.value })} className={inputClass} placeholder="https://…" />
-              </div>
-              <div>
-                <label htmlFor={`url-${method.slot}`} className={labelClass}>Payment URL (HTTPS) *</label>
-                <input id={`url-${method.slot}`} type="url" required value={method.paymentUrl} onChange={(e) => updateSlot(method.slot, { paymentUrl: e.target.value })} className={inputClass} placeholder="https://pay.example.com/…" />
-              </div>
-              <div>
-                <label htmlFor={`btn-${method.slot}`} className={labelClass}>Button text *</label>
-                <input id={`btn-${method.slot}`} required value={method.buttonText} onChange={(e) => updateSlot(method.slot, { buttonText: e.target.value })} className={inputClass} />
-              </div>
-              <div>
-                <label htmlFor={`instr-${method.slot}`} className={labelClass}>Instructions</label>
-                <textarea id={`instr-${method.slot}`} rows={3} value={method.instructions || ""} onChange={(e) => updateSlot(method.slot, { instructions: e.target.value })} className={inputClass} />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={saving === method.slot}
-              className="mt-4 w-full rounded-lg bg-[#00c2a8] px-4 py-2.5 text-sm font-semibold text-[#0b1220] hover:bg-[#00d4b8] disabled:opacity-60"
-            >
-              {saving === method.slot ? "Saving…" : `Save slot ${method.slot}`}
-            </button>
-          </form>
-        ))}
-      </div>
-    </div>
-  );
+  useEffect(() => { adminFetch<{ payments: Payment[]; cashAppConfigured: boolean }>("/api/admin/payments").then((data) => { setPayments(data.payments); setConfigured(data.cashAppConfigured); }).catch((cause) => setError(cause.message)); }, []);
+  return <div className="space-y-6">
+    <div><h1 className="font-display text-2xl font-bold">Payments</h1><p className="mt-1 text-sm text-[#8b9cb8]">Provider status, references, errors, and verified totals.</p></div>
+    <div className={`flex items-start gap-3 rounded-xl border p-4 ${configured ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200" : "border-amber-500/30 bg-amber-500/10 text-amber-200"}`}>{configured ? <CheckCircle2 className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />}<div><p className="font-semibold">Cash App {configured ? "configuration detected" : "requires configuration"}</p><p className="mt-1 text-xs opacity-75">{configured ? "Payment creation and signed webhook handling are enabled." : "Set CASH_APP_API_BASE_URL, CASH_APP_CREATE_PAYMENT_PATH, CASH_APP_API_KEY, and CASH_APP_WEBHOOK_SECRET using your provider documentation."}</p></div></div>
+    {error ? <p className="text-red-300">{error}</p> : null}
+    <div className="overflow-x-auto rounded-xl border border-[#20352d]"><table className="w-full min-w-[1000px] text-left text-sm"><thead className="bg-[#102b20] text-xs uppercase text-[#82978f]"><tr>{["Order","Match","Provider","Reference","Amount","Status","Created","Error"].map((head) => <th key={head} className="px-4 py-3">{head}</th>)}</tr></thead><tbody>{payments.map((payment) => <tr key={payment.id} className="border-t border-[#20352d] bg-[#0c2119]"><td className="px-4 py-3"><Link href={`/admin/bookings/${payment.booking.id}`} className="font-mono text-xs text-[#35e89b]">{payment.booking.reference}</Link></td><td className="px-4 py-3">{payment.booking.match.homeTeam} vs {payment.booking.match.awayTeam}</td><td className="px-4 py-3">{payment.provider.replaceAll("_"," ")}</td><td className="px-4 py-3 font-mono text-xs text-[#84988f]">{payment.providerReference || "—"}</td><td className="px-4 py-3">{formatMoney(payment.amount, payment.currency)}</td><td className="px-4 py-3">{payment.status}</td><td className="px-4 py-3 text-xs">{new Date(payment.createdAt).toLocaleString()}</td><td className="max-w-[220px] truncate px-4 py-3 text-xs text-red-300">{payment.errorMessage || "—"}</td></tr>)}</tbody></table></div>
+  </div>;
 }
