@@ -1,0 +1,60 @@
+========================================
+  FOOTBAAAL / PITCHORA — START HERE
+========================================
+
+NEED FIRST
+----------
+Install Node.js 18+ from: https://nodejs.org
+(Choose the LTS version, then restart your computer)
+
+
+DOWNLOAD
+--------
+1. Download footbaaal.zip
+2. Unzip it (right-click → Extract / Unzip)
+3. Open the unzipped folder
+
+
+RUN ON YOUR COMPUTER (LOCALHOST)
+--------------------------------
+Open Terminal (Mac) or Command Prompt / PowerShell (Windows).
+
+Go into the project folder:
+
+  cd pitchora
+
+Then run these commands one by one:
+
+  npm install
+  npx prisma db push
+  npm run db:seed
+  npm run dev
+
+OR use the shortcut (after npm install once):
+
+  npm run setup
+  npm run dev
+
+
+OPEN THE WEBSITE
+----------------
+Website:     http://localhost:3000
+Admin panel: http://localhost:3000/admin/login
+
+Admin login:
+  Email:    admin@pitchora.com
+  Password: Admin123!
+
+
+STOP THE SERVER
+---------------
+Press Ctrl + C in the terminal.
+
+
+TROUBLESHOOTING
+---------------
+- "npm not found" → install Node.js LTS, restart, try again
+- Port 3000 busy → run: npm run dev -- -p 3001
+  then open http://localhost:3001
+- Database errors → run: npm run db:reset
+========================================

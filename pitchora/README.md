@@ -1,8 +1,45 @@
-# Pitchora — Premium Football Ticket Booking
+# Pitchora (footbaaal) — Easy Localhost Guide
 
-Production-ready Next.js ticket platform with interactive seat maps, automatic upcoming-match filtering, Apple Pay / Cash App checkout links, and a secure admin dashboard.
+## 1) Download
 
-## Quick start
+Download **`footbaaal.zip`**, then unzip it.
+
+Direct download (from this repo branch):
+https://github.com/nikuislob/new-site-/raw/cursor/pitchora-ticket-platform-ae89/footbaaal.zip
+
+## 2) Install Node.js (one time)
+
+Install **Node.js LTS** from https://nodejs.org  
+Restart your terminal after installing.
+
+## 3) Setup + start
+
+Open a terminal in the unzipped folder and run:
+
+```bash
+cd pitchora
+npm run setup
+npm run dev
+```
+
+## 4) Open in your browser
+
+| Page | URL |
+|---|---|
+| Website | http://localhost:3000 |
+| Admin login | http://localhost:3000/admin/login |
+
+**Admin credentials**
+- Email: `admin@pitchora.com`
+- Password: `Admin123!`
+
+## Stop the server
+
+Press `Ctrl + C` in the terminal.
+
+---
+
+### Manual commands (same result)
 
 ```bash
 cd pitchora
@@ -12,41 +49,8 @@ npm run db:seed
 npm run dev
 ```
 
-- Storefront: http://localhost:3000
-- Admin: http://localhost:3000/admin/login
+### If something fails
 
-### Demo admin
-
-- Email: `admin@pitchora.com`
-- Password: `Admin123!`
-
-## Features
-
-- Dark premium sports theme (black / white / gold / emerald)
-- Upcoming matches only (auto-hide completed, sort by nearest kickoff)
-- Live countdown timers
-- Interactive stadium seat map (available / selected / reserved / sold)
-- Max **2 tickets** per online order
-- Bulk request flow for 3+ tickets → admin dashboard
-- Apple Pay & Cash App payment links (editable in admin)
-- Optional unique payment verification amount (&lt; $3)
-- QR ticket + printable/downloadable confirmation
-- Admin: matches, tickets, payments, orders, customers, bulk requests, CMS
-
-## Stack
-
-Next.js 15 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · Framer Motion · Prisma + SQLite · Zustand · Zod · Jose (JWT)
-
-## Scripts
-
-| Command | Description |
-|---|---|
-| `npm run dev` | Development server |
-| `npm run build` | Production build |
-| `npm run lint` | ESLint |
-| `npm run db:seed` | Seed demo data |
-| `npm run db:reset` | Reset DB + seed |
-
-## Notes
-
-Original Pitchora branding only — no FIFA trademarks or official logos.
+- `npm` not found → install Node.js LTS and reopen the terminal
+- Port 3000 already used → `npm run dev -- -p 3001` then open http://localhost:3001
+- Database issues → `npm run db:reset`

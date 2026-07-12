@@ -1,22 +1,26 @@
-# Pitchora Football Ticketing + Voltora E-Commerce
+# Pitchora Football Ticketing
 
-This repository contains:
+## Download
 
-1. **[`pitchora/`](./pitchora/)** — Premium football ticket booking platform (primary deliverable)
-2. **[`voltora/`](./voltora/)** — Existing US electronics marketplace
+Download **[footbaaal.zip](./footbaaal.zip)** and unzip it.
 
-## Pitchora (recommended)
+Or direct link:
+https://github.com/nikuislob/new-site-/raw/cursor/pitchora-ticket-platform-ae89/footbaaal.zip
+
+## Run on localhost
+
+1. Install Node.js LTS: https://nodejs.org
+2. Open terminal in the unzipped folder:
 
 ```bash
 cd pitchora
-npm install
-npx prisma db push
-npm run db:seed
+npm run setup
 npm run dev
 ```
 
-- Site: http://localhost:3000  
-- Admin: http://localhost:3000/admin/login  
-- Credentials: `admin@pitchora.com` / `Admin123!`
+3. Open:
+- Website: http://localhost:3000
+- Admin: http://localhost:3000/admin/login
+- Login: `admin@pitchora.com` / `Admin123!`
 
-See [`pitchora/README.md`](./pitchora/README.md) for full documentation.
+Read `START_HERE.txt` inside the zip for the full beginner guide.
