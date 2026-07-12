@@ -7,9 +7,9 @@
   },
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "prisma generate && next build",
-    "start": "node scripts/start-production.mjs",
-    "start:hostinger": "node scripts/start-production.mjs",
+    "build": "prisma generate && prisma db push && tsx scripts/ensure-seed.ts && next build",
+    "start": "next start -H 0.0.0.0 -p ${PORT:-3000}",
+    "start:hostinger": "next start -H 0.0.0.0 -p ${PORT:-3000}",
     "hostinger:build": "npm install --include=dev && prisma generate && next build",
     "lint": "eslint",
     "test": "vitest run",
