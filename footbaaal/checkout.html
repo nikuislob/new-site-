@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Checkout | Pitchora</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container inner">
+      <a class="brand" href="index.html"><span class="brand-mark">⚽</span><span class="gold">PITCHORA</span></a>
+    </div>
+  </header>
+  <main class="page container" id="content"></main>
+  <script src="js/app.js"></script>
+  <script>
+    var data = App.load();
+    var cart = App.getCart();
+    var root = document.getElementById("content");
+
+    if (!cart || !cart.seatIds || !cart.seatIds.length) {
+      root.innerHTML = '<div class="notice warn">Your seat selection is empty.</div><p><a class="btn btn-gold" href="matches.html">Browse Matches</a></p>';
+    } else if (cart.seatIds.length > data.settings.maxTickets) {
+      root.innerHTML = '<div class="notice error">For bookings of 3 or more tickets, please contact our support team.</div>' +
+        '<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem">' +
+        '<a class="btn btn-gold" href="bulk.html?matchId=' + cart.matchId + '">Contact Admin</a>' +
+        '<a class="btn btn-ghost" href="contact.html">Live Chat</a>' +
+        '<a class="btn btn-ghost" href="' + data.settings.whatsapp + '" target="_blank">WhatsApp</a></div>';
+    } else {
+      var match = data.matches.find(function (m) { return m.id === cart.matchId; });
+      var totals = App.calcTotals(data.settings, cart.category, cart.seatIds.length);
+      var method = "APPLE_PAY";
+      root.innerHTML =
+        '<div class="grid-2" style="align-items:start">' +
+          '<form class="form" id="checkoutForm">' +
+            '<h1>Checkout</h1>' +
+            '<div id="err"></div>' +
+            '<label>Full name<input name="name" required /></label>' +
+            '<label>Email<input name="email" type="email" required /></label>' +
+            '<label>Phone<input name="phone" required /></label>' +
+            '<div class="muted">Payment method (Apple Pay or Cash App only)</div>' +
+            '<div class="grid-2" id="payOpts">' +
+              '<button type="button" class="glass payopt" data-m="APPLE_PAY" style="padding:1rem;text-align:left;border-color:var(--gold);background:var(--gold-soft)"><strong>Apple Pay</strong><div class="muted" style="font-size:.8rem">Secure link checkout</div></button>' +
+              '<button type="button" class="glass payopt" data-m="CASH_APP" style="padding:1rem;text-align:left"><strong>Cash App</strong><div class="muted" style="font-size:.8rem">Secure link checkout</div></button>' +
+            '</div>' +
+            '<button class="btn btn-gold" type="submit">Place Order & Pay</button>' +
+          '</form>' +
+          '<aside class="glass" style="padding:1.2rem">' +
+            '<h2 style="font-size:2rem">Summary</h2>' +
+            '<ul class="muted" style="padding-left:1.1rem;line-height:1.8">' +
+              '<li>Category: ' + (cart.category === "CLOSER" ? "Closer View" : "Upper Side") + '</li>' +
+              '<li>Seats: ' + cart.seatIds.join(", ") + '</li>' +
+              '<li>Quantity: ' + cart.seatIds.length + '</li>' +
+              '<li>Unit: ' + App.money(totals.unit) + '</li>' +
+              '<li>Subtotal: ' + App.money(totals.subtotal) + '</li>' +
+            '</ul>' +
+            '<div class="display" style="color:var(--gold);font-size:2.6rem;margin-top:.8rem">' + App.money(totals.original) + '</div>' +
+            (data.settings.uniquePayment ? '<p class="muted" style="font-size:.8rem">A unique verification amount under +$3 may be added next.</p>' : '') +
+          '</aside>' +
+        '</div>';
+
+      document.querySelectorAll(".payopt").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          method = btn.getAttribute("data-m");
+          document.querySelectorAll(".payopt").forEach(function (b) {
+            b.style.borderColor = "var(--line)";
+            b.style.background = "";
+          });
+          btn.style.borderColor = "var(--gold)";
+          btn.style.background = "var(--gold-soft)";
+        });
+      });
+
+      document.getElementById("checkoutForm").addEventListener("submit", function (e) {
+        e.preventDefault();
+        var fd = new FormData(e.target);
+        // validate seats still available
+        var seats = match.seats.filter(function (s) { return cart.seatIds.indexOf(s.id) >= 0; });
+        if (seats.some(function (s) { return s.status !== "AVAILABLE"; })) {
+          document.getElementById("err").innerHTML = '<div class="notice error">One or more seats are no longer available.</div>';
+          return;
+        }
+        var t = App.calcTotals(data.settings, cart.category, seats.length);
+        var link = cart.category === "CLOSER"
+          ? (method === "APPLE_PAY" ? data.settings.closerApplePay : data.settings.closerCashApp)
+          : (method === "APPLE_PAY" ? data.settings.upperApplePay : data.settings.upperCashApp);
+        var order = {
+          id: App.uid("ord"),
+          orderNumber: "PO" + Date.now().toString().slice(-8),
+          customerName: String(fd.get("name")),
+          customerEmail: String(fd.get("email")),
+          customerPhone: String(fd.get("phone")),
+          matchId: match.id,
+          category: cart.category,
+          seats: cart.seatIds.slice(),
+          quantity: seats.length,
+          originalTotal: t.original,
+          paymentAmount: t.payment,
+          paymentMethod: method,
+          paymentLink: link,
+          paymentStatus: "PENDING",
+          createdAt: new Date().toISOString()
+        };
+        seats.forEach(function (s) { s.status = "RESERVED"; });
+        data.orders.unshift(order);
+        App.save(data);
+        App.clearCart();
+        location.href = "confirmation.html?id=" + order.id + "&pay=1";
+      });
+    }
+  </script>
+</body>
+</html>

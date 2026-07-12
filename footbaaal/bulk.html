@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bulk Ticket Request | Pitchora</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container inner">
+      <a class="brand" href="index.html"><span class="brand-mark">⚽</span><span class="gold">PITCHORA</span></a>
+      <nav class="nav" id="nav">
+        <a href="matches.html">Matches</a>
+        <a href="contact.html">Contact</a>
+      </nav>
+    </div>
+  </header>
+  <main class="page container" style="max-width:720px">
+    <div class="eyebrow">Groups</div>
+    <h1>Bulk Ticket Request</h1>
+    <p class="muted">Need 3 or more seats? Send a request to the admin dashboard.</p>
+    <div class="notice warn" style="margin:1rem 0">For bookings of 3 or more tickets, please contact our support team. Online checkout is disabled above 2 tickets.</div>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem">
+      <a class="btn btn-ghost btn-sm" href="contact.html">Live Chat / Contact</a>
+      <a class="btn btn-ghost btn-sm" id="wa" target="_blank">WhatsApp</a>
+    </div>
+    <form class="glass form" style="padding:1.2rem" id="form">
+      <div id="msg"></div>
+      <label>Name<input name="name" required /></label>
+      <label>Email<input name="email" type="email" required /></label>
+      <label>Phone<input name="phone" required /></label>
+      <label>Match
+        <select name="matchId" id="matchId"><option value="">Select a match</option></select>
+      </label>
+      <label>Requested quantity<input name="quantity" type="number" min="3" max="100" value="3" required /></label>
+      <label>Message<textarea name="message"></textarea></label>
+      <button class="btn btn-gold" type="submit">Submit Bulk Request</button>
+    </form>
+  </main>
+  <script src="js/app.js"></script>
+  <script>
+    App.wireHeader();
+    var data = App.load();
+    document.getElementById("wa").href = data.settings.whatsapp;
+    var preset = App.qs("matchId") || "";
+    var sel = document.getElementById("matchId");
+    App.upcoming(data).forEach(function (m) {
+      var home = App.getTeam(data, m.homeTeamId);
+      var away = App.getTeam(data, m.awayTeamId);
+      var opt = document.createElement("option");
+      opt.value = m.id;
+      opt.textContent = home.name + " vs " + away.name;
+      if (m.id === preset) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    document.getElementById("form").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var fd = new FormData(e.target);
+      var matchId = String(fd.get("matchId") || "");
+      var match = data.matches.find(function (m) { return m.id === matchId; });
+      var label = "";
+      if (match) {
+        label = App.getTeam(data, match.homeTeamId).name + " vs " + App.getTeam(data, match.awayTeamId).name;
+      }
+      data.bulkRequests.unshift({
+        id: App.uid("bulk"),
+        name: String(fd.get("name")),
+        email: String(fd.get("email")),
+        phone: String(fd.get("phone")),
+        matchId: matchId || null,
+        matchLabel: label || null,
+        quantity: Number(fd.get("quantity")),
+        message: String(fd.get("message") || ""),
+        status: "PENDING",
+        adminReply: "",
+        createdAt: new Date().toISOString()
+      });
+      App.save(data);
+      document.getElementById("msg").innerHTML = '<div class="notice ok">Bulk request submitted to the admin dashboard.</div>';
+      e.target.reset();
+    });
+  </script>
+</body>
+</html>

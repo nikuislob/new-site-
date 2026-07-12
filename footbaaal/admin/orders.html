@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Orders | Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+  <div class="admin-layout">
+    <aside class="admin-side" id="side"></aside>
+    <main class="admin-main">
+      <div style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;align-items:end">
+        <div>
+          <h1 style="font-size:2.8rem">Orders</h1>
+          <p class="muted">Search, update status, export CSV.</p>
+        </div>
+        <button class="btn btn-ghost" id="exportBtn" type="button">Export CSV</button>
+      </div>
+      <div class="grid-2" style="margin:1rem 0">
+        <label>Search<input id="q" placeholder="Name, email, order ID" /></label>
+        <label>Status
+          <select id="status">
+            <option value="">All</option>
+            <option>PENDING</option>
+            <option>PAID</option>
+            <option>CANCELLED</option>
+          </select>
+        </label>
+      </div>
+      <div class="glass" style="padding:0.5rem;overflow:auto">
+        <table>
+          <thead><tr><th>Order</th><th>Customer</th><th>Match</th><th>Seats</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+  <script src="../js/app.js"></script>
+  <script src="admin.js"></script>
+  <script>
+    App.requireAdmin();
+    Admin.nav("orders");
+    function render() {
+      var data = App.load();
+      var q = document.getElementById("q").value.trim().toLowerCase();
+      var status = document.getElementById("status").value;
+      var rows = data.orders.filter(function (o) {
+        if (status && o.paymentStatus !== status) return false;
+        if (!q) return true;
+        return [o.orderNumber, o.customerName, o.customerEmail, o.customerPhone].join(" ").toLowerCase().indexOf(q) >= 0;
+      });
+      document.getElementById("tbody").innerHTML = rows.map(function (o) {
+        var match = data.matches.find(function (m) { return m.id === o.matchId; });
+        var label = match ? App.getTeam(data, match.homeTeamId).name + " vs " + App.getTeam(data, match.awayTeamId).name : o.matchId;
+        return '<tr>' +
+          '<td><strong>' + o.orderNumber + '</strong><div class="muted" style="font-size:.75rem">' + new Date(o.createdAt).toLocaleString() + '</div></td>' +
+          '<td>' + o.customerName + '<div class="muted" style="font-size:.75rem">' + o.customerEmail + '</div></td>' +
+          '<td>' + label + '<div class="muted" style="font-size:.75rem">' + o.category + ' × ' + o.quantity + '</div></td>' +
+          '<td>' + o.seats.join(", ") + '</td>' +
+          '<td>' + App.money(o.originalTotal) + '<div class="muted" style="font-size:.75rem">Pay ' + App.money(o.paymentAmount) + '</div></td>' +
+          '<td>' + o.paymentStatus + '</td>' +
+          '<td><button class="btn btn-ghost btn-sm" data-paid="' + o.id + '">Mark Paid</button> <button class="btn btn-danger btn-sm" data-cancel="' + o.id + '">Cancel</button></td>' +
+        '</tr>';
+      }).join("") || '<tr><td colspan="7" class="muted">No orders</td></tr>';
+
+      document.querySelectorAll("[data-paid]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var data = App.load();
+          var o = data.orders.find(function (x) { return x.id === btn.getAttribute("data-paid"); });
+          if (!o) return;
+          o.paymentStatus = "PAID";
+          var match = data.matches.find(function (m) { return m.id === o.matchId; });
+          if (match) match.seats.forEach(function (s) { if (o.seats.indexOf(s.id) >= 0) s.status = "SOLD"; });
+          App.save(data); render();
+        });
+      });
+      document.querySelectorAll("[data-cancel]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var data = App.load();
+          var o = data.orders.find(function (x) { return x.id === btn.getAttribute("data-cancel"); });
+          if (!o) return;
+          o.paymentStatus = "CANCELLED";
+          var match = data.matches.find(function (m) { return m.id === o.matchId; });
+          if (match) match.seats.forEach(function (s) { if (o.seats.indexOf(s.id) >= 0) { s.status = "AVAILABLE"; } });
+          App.save(data); render();
+        });
+      });
+    }
+    document.getElementById("q").addEventListener("input", render);
+    document.getElementById("status").addEventListener("change", render);
+    document.getElementById("exportBtn").addEventListener("click", function () {
+      var data = App.load();
+      var csv = ["Order,Customer,Email,Phone,Seats,Qty,Type,Total,Pay,Method,Status,Date"]
+        .concat(data.orders.map(function (o) {
+          return [o.orderNumber, o.customerName, o.customerEmail, o.customerPhone, o.seats.join(" "), o.quantity, o.category, o.originalTotal, o.paymentAmount, o.paymentMethod, o.paymentStatus, o.createdAt]
+            .map(function (c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(",");
+        })).join("\n");
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+      a.download = "orders.csv";
+      a.click();
+    });
+    render();
+  </script>
+</body>
+</html>

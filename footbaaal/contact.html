@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Contact | Pitchora</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container inner">
+      <a class="brand" href="index.html"><span class="brand-mark">⚽</span><span class="gold">PITCHORA</span></a>
+      <button class="menu-btn" id="menuBtn">☰</button>
+      <nav class="nav" id="nav">
+        <a href="index.html">Home</a>
+        <a href="matches.html">Matches</a>
+        <a href="contact.html">Contact</a>
+        <a href="faq.html">FAQ</a>
+      </nav>
+    </div>
+  </header>
+  <main class="page container">
+    <div class="eyebrow">Support</div>
+    <h1>Contact</h1>
+    <div class="grid-2" style="margin-top:1.2rem;align-items:start">
+      <form class="glass form" style="padding:1.2rem" id="form">
+        <div id="msg"></div>
+        <label>Name<input name="name" required /></label>
+        <label>Email<input name="email" type="email" required /></label>
+        <label>Phone<input name="phone" /></label>
+        <label>Subject<input name="subject" required /></label>
+        <label>Message<textarea name="message" required></textarea></label>
+        <button class="btn btn-gold" type="submit">Send Message</button>
+      </form>
+      <div class="glass" style="padding:1.2rem" id="info"></div>
+    </div>
+  </main>
+  <script src="js/app.js"></script>
+  <script>
+    App.wireHeader();
+    var data = App.load();
+    var s = data.settings;
+    document.getElementById("info").innerHTML =
+      '<h2 style="font-size:2rem">Direct channels</h2>' +
+      '<p class="muted">Email: ' + s.contactEmail + '</p>' +
+      '<p class="muted">Phone: ' + s.contactPhone + '</p>' +
+      '<p class="muted">Address: ' + s.contactAddress + '</p>' +
+      '<p><a style="color:var(--gold)" href="' + s.whatsapp + '" target="_blank">WhatsApp chat</a></p>';
+    document.getElementById("form").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var fd = new FormData(e.target);
+      data.contacts.unshift({
+        id: App.uid("msg"),
+        name: String(fd.get("name")),
+        email: String(fd.get("email")),
+        phone: String(fd.get("phone") || ""),
+        subject: String(fd.get("subject")),
+        message: String(fd.get("message")),
+        createdAt: new Date().toISOString()
+      });
+      App.save(data);
+      document.getElementById("msg").innerHTML = '<div class="notice ok">Message sent. Our team will reply shortly.</div>';
+      e.target.reset();
+    });
+  </script>
+</body>
+</html>

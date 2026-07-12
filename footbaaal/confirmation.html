@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Order Confirmation | Pitchora</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container inner">
+      <a class="brand" href="index.html"><span class="brand-mark">⚽</span><span class="gold">PITCHORA</span></a>
+    </div>
+  </header>
+  <main class="page container" id="content" style="max-width:760px"></main>
+  <script src="js/app.js"></script>
+  <script>
+    var data = App.load();
+    var id = App.qs("id");
+    var order = data.orders.find(function (o) { return o.id === id || o.orderNumber === id; });
+    var root = document.getElementById("content");
+
+    if (!order) {
+      root.innerHTML = '<div class="notice error">Order not found.</div>';
+    } else {
+      var match = data.matches.find(function (m) { return m.id === order.matchId; });
+      var home = App.getTeam(data, match.homeTeamId);
+      var away = App.getTeam(data, match.awayTeamId);
+      var showPay = App.qs("pay") === "1" && order.paymentStatus === "PENDING";
+
+      root.innerHTML =
+        '<div style="text-align:center">' +
+          '<div class="eyebrow">Order Confirmation</div>' +
+          '<h1>You\'re almost match-ready</h1>' +
+          '<p class="muted">Order ID: ' + order.orderNumber + '</p>' +
+        '</div>' +
+        (showPay ? '<div class="glass" style="padding:1.2rem;margin:1rem 0">' +
+          '<div class="notice info">Pay <strong>' + App.money(order.paymentAmount) + '</strong>' +
+          (order.paymentAmount !== order.originalTotal ? ' (ticket total ' + App.money(order.originalTotal) + ' + unique verification amount)' : '') +
+          ' via ' + (order.paymentMethod === "APPLE_PAY" ? "Apple Pay" : "Cash App") + '.</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:.6rem;margin-top:.8rem">' +
+            '<a class="btn btn-gold" href="' + order.paymentLink + '" target="_blank">Open Payment Link</a>' +
+            '<button class="btn btn-ghost" id="paidBtn" type="button">I\'ve Completed Payment</button>' +
+          '</div></div>' : '') +
+        '<div class="glass" style="padding:1.2rem;display:grid;gap:1rem;grid-template-columns:1fr auto">' +
+          '<div style="font-size:.95rem;line-height:1.7">' +
+            '<div><span class="muted">Match:</span> ' + home.name + ' vs ' + away.name + '</div>' +
+            '<div><span class="muted">Stadium:</span> ' + match.stadium + '</div>' +
+            '<div><span class="muted">Kickoff:</span> ' + new Date(match.kickoffAt).toLocaleString() + '</div>' +
+            '<div><span class="muted">Seats:</span> ' + order.seats.join(", ") + '</div>' +
+            '<div><span class="muted">Guest:</span> ' + order.customerName + ' (' + order.customerEmail + ')</div>' +
+            '<div><span class="muted">Ticket total:</span> ' + App.money(order.originalTotal) + '</div>' +
+            '<div><span class="muted">Payment amount:</span> ' + App.money(order.paymentAmount) + '</div>' +
+            '<div><span class="muted">Status:</span> <strong id="status">' + order.paymentStatus + '</strong></div>' +
+          '</div>' +
+          '<div style="background:#fff;color:#111;padding:1rem;border-radius:14px;text-align:center">' +
+            '<div id="qr"></div><div style="font-size:.75rem;margin-top:.4rem;font-weight:700">QR Ticket</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:.6rem;margin-top:1rem" class="print:hidden">' +
+          '<button class="btn btn-gold" onclick="window.print()" type="button">Print Ticket</button>' +
+          '<button class="btn btn-ghost" id="dlBtn" type="button">Download Ticket</button>' +
+          '<a class="btn btn-ghost" href="matches.html">More Matches</a>' +
+        '</div>';
+
+      new QRCode(document.getElementById("qr"), {
+        text: JSON.stringify({ order: order.orderNumber, seats: order.seats, email: order.customerEmail }),
+        width: 140,
+        height: 140
+      });
+
+      var paidBtn = document.getElementById("paidBtn");
+      if (paidBtn) {
+        paidBtn.addEventListener("click", function () {
+          order.paymentStatus = "PAID";
+          match.seats.forEach(function (s) {
+            if (order.seats.indexOf(s.id) >= 0) s.status = "SOLD";
+          });
+          App.save(data);
+          document.getElementById("status").textContent = "PAID";
+          paidBtn.parentElement.parentElement.innerHTML = '<div class="notice ok">Payment marked as paid. Your ticket is ready.</div>';
+        });
+      }
+
+      document.getElementById("dlBtn").addEventListener("click", function () {
+        var text = "Pitchora Ticket\nOrder: " + order.orderNumber + "\nMatch: " + home.name + " vs " + away.name +
+          "\nSeats: " + order.seats.join(", ") + "\nAmount: " + order.paymentAmount + "\nStatus: " + order.paymentStatus;
+        var blob = new Blob([text], { type: "text/plain" });
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = order.orderNumber + ".txt";
+        a.click();
+      });
+    }
+  </script>
+</body>
+</html>

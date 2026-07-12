@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Seat Selection | Pitchora</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container inner">
+      <a class="brand" href="index.html"><span class="brand-mark">⚽</span><span class="gold">PITCHORA</span></a>
+      <nav class="nav" id="nav">
+        <a href="matches.html">Matches</a>
+        <a href="bulk.html">Bulk Help</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page container">
+    <div class="eyebrow">Ticket Booking</div>
+    <h1 id="title">Select Seats</h1>
+    <p class="muted">Choose a category, then pick up to <span id="maxLabel">2</span> seats.</p>
+
+    <div id="msg"></div>
+
+    <div class="grid-2" style="margin:1rem 0" id="cats"></div>
+
+    <div class="glass" style="padding:1rem;margin-bottom:1rem">
+      <label>Quantity selector (max <span id="maxLabel2">2</span>)
+        <input type="number" id="qty" min="1" max="2" value="1" />
+      </label>
+      <div id="bulkBox" style="display:none;margin-top:.8rem">
+        <div class="notice warn">For bookings of 3 or more tickets, please contact our support team.</div>
+        <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.7rem">
+          <a class="btn btn-gold btn-sm" id="bulkLink" href="bulk.html">Contact Admin</a>
+          <a class="btn btn-ghost btn-sm" href="contact.html">Live Chat / Contact</a>
+          <a class="btn btn-ghost btn-sm" id="waLink" target="_blank" rel="noreferrer">WhatsApp</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass seat-map">
+      <div class="pitch">PITCH</div>
+      <div class="sections" id="seatSections"></div>
+      <div class="legend">
+        <span><i style="background:#10b981"></i>Available</span>
+        <span><i style="background:#fbbf24"></i>Selected</span>
+        <span><i style="background:#ef4444"></i>Sold / Reserved</span>
+      </div>
+    </div>
+
+    <div class="glass summary" style="margin-top:1rem">
+      <div>
+        <div class="muted" style="font-size:.85rem">Order summary</div>
+        <div id="summaryText">No seats selected</div>
+        <div class="gold" id="summaryPrice" style="font-weight:800"></div>
+      </div>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <button class="btn btn-ghost" id="clearBtn" type="button">Clear</button>
+        <button class="btn btn-gold" id="checkoutBtn" type="button" disabled>Continue to Checkout</button>
+      </div>
+    </div>
+  </main>
+
+  <script src="js/app.js"></script>
+  <script>
+    App.wireHeader();
+    var data = App.load();
+    var matchId = App.qs("id");
+    var category = App.qs("category") || "UPPER";
+    var match = data.matches.find(function (m) { return m.id === matchId; });
+    var max = data.settings.maxTickets || 2;
+    var selected = [];
+
+    if (!match || new Date(match.kickoffAt) <= new Date()) {
+      location.href = "matches.html";
+    }
+
+    var home = App.getTeam(data, match.homeTeamId);
+    var away = App.getTeam(data, match.awayTeamId);
+    document.getElementById("title").textContent = home.name + " vs " + away.name;
+    document.getElementById("maxLabel").textContent = max;
+    document.getElementById("maxLabel2").textContent = max;
+    document.getElementById("qty").max = max;
+    document.getElementById("bulkLink").href = "bulk.html?matchId=" + matchId;
+    document.getElementById("waLink").href = data.settings.whatsapp;
+
+    function showMsg(text, type) {
+      document.getElementById("msg").innerHTML = text ? '<div class="notice ' + (type || "error") + '" style="margin:1rem 0">' + text + '</div>' : "";
+    }
+
+    function unitPrice() {
+      return category === "CLOSER" ? data.settings.closerPrice : data.settings.upperPrice;
+    }
+
+    function renderCats() {
+      document.getElementById("cats").innerHTML = ["UPPER", "CLOSER"].map(function (cat) {
+        var active = cat === category;
+        var price = cat === "CLOSER" ? data.settings.closerPrice : data.settings.upperPrice;
+        var label = cat === "CLOSER" ? "Closer View Seats" : "Upper Side Seats";
+        return '<button class="glass" type="button" data-cat="' + cat + '" style="padding:1rem;text-align:left;cursor:pointer;border-color:' + (active ? "var(--gold)" : "var(--line)") + ';background:' + (active ? "var(--gold-soft)" : "") + '"><strong>' + label + '</strong><div class="muted">' + App.money(price) + ' each</div></button>';
+      }).join("");
+      document.querySelectorAll("#cats button").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          category = btn.getAttribute("data-cat");
+          selected = [];
+          showMsg("");
+          renderCats();
+          renderSeats();
+          renderSummary();
+        });
+      });
+    }
+
+    function renderSeats() {
+      var seats = match.seats.filter(function (s) { return s.category === category; });
+      var sections = {};
+      seats.forEach(function (s) {
+        sections[s.section] = sections[s.section] || {};
+        sections[s.section][s.row] = sections[s.section][s.row] || [];
+        sections[s.section][s.row].push(s);
+      });
+      var html = Object.keys(sections).sort().map(function (section) {
+        var rows = sections[section];
+        var rowsHtml = Object.keys(rows).sort().map(function (row) {
+          var rowSeats = rows[row].sort(function (a, b) { return a.number - b.number; });
+          return '<div class="row"><div class="row-label">' + row + '</div><div class="seats">' + rowSeats.map(function (seat) {
+            var isSelected = selected.indexOf(seat.id) >= 0;
+            var cls = isSelected ? "selected" : (seat.status === "AVAILABLE" ? "available" : "sold");
+            var disabled = seat.status !== "AVAILABLE" && !isSelected ? "disabled" : "";
+            return '<button class="seat ' + cls + '" type="button" title="' + seat.section + ' Row ' + seat.row + ' Seat ' + seat.number + '" data-id="' + seat.id + '" ' + disabled + '></button>';
+          }).join("") + '</div></div>';
+        }).join("");
+        return '<div class="section-box"><h4>Section ' + section + '</h4>' + rowsHtml + '</div>';
+      }).join("");
+      document.getElementById("seatSections").innerHTML = html;
+      document.querySelectorAll(".seat").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var id = btn.getAttribute("data-id");
+          var idx = selected.indexOf(id);
+          if (idx >= 0) {
+            selected.splice(idx, 1);
+          } else {
+            if (selected.length >= max) {
+              showMsg("Maximum " + max + " tickets per order. For 3 or more, contact support.", "warn");
+              document.getElementById("bulkBox").style.display = "block";
+              return;
+            }
+            selected.push(id);
+            showMsg("");
+          }
+          renderSeats();
+          renderSummary();
+        });
+      });
+    }
+
+    function renderSummary() {
+      var labels = selected.map(function (id) {
+        var s = match.seats.find(function (x) { return x.id === id; });
+        return s.section + "-" + s.row + "-" + s.number;
+      });
+      document.getElementById("summaryText").textContent = labels.length ? labels.join(", ") : "No seats selected";
+      document.getElementById("summaryPrice").textContent = labels.length ? App.money(unitPrice() * labels.length) : "";
+      document.getElementById("checkoutBtn").disabled = selected.length === 0;
+    }
+
+    document.getElementById("qty").addEventListener("input", function (e) {
+      var n = Number(e.target.value);
+      if (n > max) {
+        e.target.value = max;
+        showMsg("For bookings of 3 or more tickets, please contact our support team.", "warn");
+        document.getElementById("bulkBox").style.display = "block";
+      }
+    });
+
+    document.getElementById("clearBtn").addEventListener("click", function () {
+      selected = [];
+      showMsg("");
+      renderSeats();
+      renderSummary();
+    });
+
+    document.getElementById("checkoutBtn").addEventListener("click", function () {
+      App.setCart({
+        matchId: match.id,
+        category: category,
+        seatIds: selected.slice()
+      });
+      location.href = "checkout.html";
+    });
+
+    renderCats();
+    renderSeats();
+    renderSummary();
+  </script>
+</body>
+</html>

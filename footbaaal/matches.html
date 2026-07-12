@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Upcoming Matches | Pitchora</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container inner">
+      <a class="brand" href="index.html"><span class="brand-mark">⚽</span><span class="gold">PITCHORA</span></a>
+      <button class="menu-btn" id="menuBtn">☰</button>
+      <nav class="nav" id="nav">
+        <a href="index.html">Home</a>
+        <a href="matches.html">Matches</a>
+        <a href="contact.html">Contact</a>
+        <a href="faq.html">FAQ</a>
+        <a class="btn btn-gold btn-sm" href="matches.html">Book Tickets</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page container">
+    <div class="eyebrow">Match Center</div>
+    <h1>Upcoming Matches</h1>
+    <p class="muted">Live availability and countdowns for every fixture still to kick off.</p>
+    <div class="grid-2" id="list" style="margin-top:1.5rem"></div>
+  </main>
+
+  <footer class="site-footer"><div class="copy">© Pitchora</div></footer>
+  <script src="js/app.js"></script>
+  <script>
+    App.wireHeader();
+    var data = App.load();
+    var matches = App.upcoming(data);
+    document.getElementById("list").innerHTML = matches.map(function (m) { return App.matchCard(data, m); }).join("") || '<div class="notice info">No upcoming matches.</div>';
+    matches.forEach(function (m) { App.renderCountdown(m.kickoffAt, "cd-" + m.id); });
+  </script>
+</body>
+</html>

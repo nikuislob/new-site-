@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pitchora | Book Football Tickets</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container inner">
+      <a class="brand" href="index.html"><span class="brand-mark">⚽</span><span class="gold">PITCHORA</span></a>
+      <button class="menu-btn" id="menuBtn" aria-label="Menu">☰</button>
+      <nav class="nav" id="nav">
+        <a href="index.html">Home</a>
+        <a href="matches.html">Matches</a>
+        <a href="contact.html">Contact</a>
+        <a href="faq.html">FAQ</a>
+        <a class="btn btn-gold btn-sm" href="matches.html">Book Tickets</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-bg"></div>
+    <div class="container hero-content">
+      <div class="eyebrow">Pitchora Premium Tickets</div>
+      <h1 class="gold" id="heroTitle">Book Your Football Tickets</h1>
+      <p id="heroSub">Premium seats. Iconic stadiums. Unforgettable nights under the lights.</p>
+      <div class="hero-actions">
+        <a class="btn btn-gold" href="matches.html">Browse Matches</a>
+        <a class="btn btn-ghost" href="bulk.html">Bulk Booking Help</a>
+      </div>
+      <div>
+        <div class="eyebrow" style="margin-top:1.5rem">Next kickoff</div>
+        <div class="countdown" id="heroCountdown"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="section-head">
+        <div class="eyebrow">Fixtures</div>
+        <h2>Upcoming Matches</h2>
+        <p class="muted">Only future kickoffs — completed matches disappear automatically.</p>
+      </div>
+      <div class="grid-2" id="homeMatches"></div>
+    </div>
+  </section>
+
+  <section class="section" style="padding-top:0">
+    <div class="container">
+      <div class="section-head">
+        <div class="eyebrow">Clubs</div>
+        <h2>Featured Teams</h2>
+      </div>
+      <div class="grid-4" id="homeTeams"></div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div>
+        <div class="brand gold">PITCHORA</div>
+        <p id="footerText">Premium football ticket experiences worldwide.</p>
+      </div>
+      <div>
+        <h4>Explore</h4>
+        <a href="matches.html">Upcoming Matches</a>
+        <a href="bulk.html">Bulk Tickets</a>
+        <a href="faq.html">FAQ</a>
+        <a href="contact.html">Contact</a>
+      </div>
+      <div>
+        <h4>Legal</h4>
+        <a href="privacy.html">Privacy Policy</a>
+        <a href="terms.html">Terms</a>
+        <a href="admin/login.html">Admin Login</a>
+      </div>
+    </div>
+    <div class="copy">© <span id="year"></span> Pitchora. Original branding — not affiliated with FIFA.</div>
+  </footer>
+
+  <script src="js/app.js"></script>
+  <script>
+    App.wireHeader();
+    document.getElementById("year").textContent = new Date().getFullYear();
+    var data = App.load();
+    document.getElementById("heroTitle").textContent = data.settings.heroHeadline;
+    document.getElementById("heroSub").textContent = data.settings.heroSubheadline;
+    document.getElementById("footerText").textContent = data.settings.footerText;
+
+    var matches = App.upcoming(data);
+    if (matches[0]) App.renderCountdown(matches[0].kickoffAt, "heroCountdown");
+    else document.getElementById("heroCountdown").innerHTML = '<span class="muted">No upcoming matches</span>';
+
+    document.getElementById("homeMatches").innerHTML = matches.slice(0, 4).map(function (m) {
+      return App.matchCard(data, m);
+    }).join("") || '<div class="notice info">No upcoming matches yet.</div>';
+
+    matches.slice(0, 4).forEach(function (m) { App.renderCountdown(m.kickoffAt, "cd-" + m.id); });
+
+    var counts = {};
+    matches.forEach(function (m) {
+      counts[m.homeTeamId] = (counts[m.homeTeamId] || 0) + 1;
+      counts[m.awayTeamId] = (counts[m.awayTeamId] || 0) + 1;
+    });
+    document.getElementById("homeTeams").innerHTML = data.teams.map(function (t) {
+      return '<div class="glass" style="padding:1rem"><img class="logo" src="' + t.logo + '" alt=""><h3 style="margin:.8rem 0 .2rem;font-size:1.1rem">' + t.name + '</h3><div class="muted" style="font-size:.85rem">' + t.country + '</div><div style="color:var(--emerald);margin-top:.7rem;font-size:.9rem">' + (counts[t.id] || 0) + ' upcoming</div></div>';
+    }).join("");
+  </script>
+</body>
+</html>

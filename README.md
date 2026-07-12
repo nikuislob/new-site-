@@ -1,26 +1,23 @@
-# Pitchora Football Ticketing
+# Footbaaal / Pitchora — Simple Ticket Website
 
 ## Download
 
-Download **[footbaaal.zip](./footbaaal.zip)** and unzip it.
+**[footbaaal.zip](./footbaaal.zip)**  
+Direct: https://github.com/nikuislob/new-site-/raw/cursor/pitchora-ticket-platform-ae89/footbaaal.zip
 
-Or direct link:
-https://github.com/nikuislob/new-site-/raw/cursor/pitchora-ticket-platform-ae89/footbaaal.zip
+## How to open (no Node / npm needed)
 
-## Run on localhost
+1. Unzip `footbaaal.zip`
+2. Open the `footbaaal` folder
+3. Double-click **`index.html`**
 
-1. Install Node.js LTS: https://nodejs.org
-2. Open terminal in the unzipped folder:
+### Optional localhost
+- Windows: `START-WINDOWS.bat` → http://localhost:3000
+- Mac: `START-MAC.command` → http://localhost:3000
 
-```bash
-cd pitchora
-npm run setup
-npm run dev
-```
+### Admin
+- `admin/login.html`
+- Email: `admin@pitchora.com`
+- Password: `Admin123!`
 
-3. Open:
-- Website: http://localhost:3000
-- Admin: http://localhost:3000/admin/login
-- Login: `admin@pitchora.com` / `Admin123!`
-
-Read `START_HERE.txt` inside the zip for the full beginner guide.
+Read `START_HERE.txt` inside the zip.
