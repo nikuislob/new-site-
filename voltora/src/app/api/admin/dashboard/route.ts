@@ -1,66 +1,63 @@
-import { requireAdmin, adminCan, AuthError } from "@/lib/auth";
+import { AuthError, adminCan, requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { safeJson, errorJson } from "@/lib/utils";
+import { availableInventory, releaseExpiredReservations } from "@/lib/inventory";
+import { errorJson, safeJson } from "@/lib/utils";
 
 export async function GET() {
   try {
     const admin = await requireAdmin();
     if (!adminCan(admin.role, "dashboard")) return errorJson("Forbidden", 403);
 
-    const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    await releaseExpiredReservations();
 
     const [
       totalOrders,
+      paidOrders,
       pendingOrders,
-      totalRevenue,
-      totalProducts,
-      lowStockProducts,
-      openTickets,
-      recentOrders,
-      topProducts,
+      ticketsSold,
+      categories,
+      revenueAgg,
+      activeChats,
     ] = await Promise.all([
       prisma.order.count(),
-      prisma.order.count({ where: { status: "PAYMENT_PENDING" } }),
+      prisma.order.count({ where: { paymentStatus: "PAID" } }),
+      prisma.order.count({
+        where: { status: { in: ["PENDING", "AWAITING_PAYMENT", "AWAITING_VERIFICATION"] } },
+      }),
+      prisma.ticket.count({ where: { status: { in: ["VALID", "USED"] } } }),
+      prisma.ticketCategory.findMany({ where: { isActive: true } }),
       prisma.order.aggregate({
-        where: { paymentStatus: "CONFIRMED" },
-        _sum: { total: true },
+        where: { paymentStatus: "PAID" },
+        _sum: { totalCents: true },
       }),
-      prisma.product.count({ where: { isActive: true } }),
-      prisma.product.count({ where: { isActive: true, stockQuantity: { lte: 5 } } }),
       prisma.conversation.count({ where: { status: "OPEN" } }),
-      prisma.order.findMany({
-        take: 5,
-        orderBy: { createdAt: "desc" },
-        include: { items: true },
-      }),
-      prisma.product.findMany({
-        where: { isActive: true },
-        orderBy: { salesCount: "desc" },
-        take: 5,
-        select: { id: true, name: true, slug: true, salesCount: true, stockQuantity: true },
-      }),
     ]);
 
-    const ordersLast30 = await prisma.order.count({
-      where: { createdAt: { gte: thirtyDaysAgo } },
+    const remainingInventory = categories.reduce(
+      (sum, c) => sum + availableInventory(c.totalInventory, c.reservedCount, c.soldCount),
+      0
+    );
+
+    const recentOrders = await prisma.order.findMany({
+      take: 8,
+      orderBy: { createdAt: "desc" },
+      include: { match: true, items: true },
     });
 
     return safeJson({
       stats: {
         totalOrders,
+        paidOrders,
         pendingOrders,
-        ordersLast30,
-        totalRevenue: totalRevenue._sum.total || 0,
-        totalProducts,
-        lowStockProducts,
-        openTickets,
+        ticketsSold,
+        remainingInventory,
+        revenueCents: revenueAgg._sum.totalCents || 0,
+        activeChats,
       },
       recentOrders,
-      topProducts,
     });
-  } catch (e) {
-    if (e instanceof AuthError) return errorJson(e.message, e.status);
-    return errorJson("Failed to fetch dashboard", 500);
+  } catch (err) {
+    if (err instanceof AuthError) return errorJson(err.message, err.status);
+    return errorJson("Failed to load dashboard", 500);
   }
 }

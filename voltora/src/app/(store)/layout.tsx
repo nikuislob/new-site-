@@ -1,44 +1,23 @@
-import { prisma } from "@/lib/db";
-import { getSettings } from "@/lib/settings";
-import { StoreShell } from "@/components/layout/StoreShell";
-import type { NavCategory } from "@/components/layout/Header";
-
-async function getNavCategories(): Promise<NavCategory[]> {
-  const parents = await prisma.category.findMany({
-    where: { parentId: null, isActive: true },
-    orderBy: { sortOrder: "asc" },
-    include: {
-      children: {
-        where: { isActive: true },
-        orderBy: { sortOrder: "asc" },
-      },
-    },
-  });
-
-  return parents.map((p) => ({
-    id: p.id,
-    name: p.name,
-    slug: p.slug,
-    children: p.children.map((c) => ({ id: c.id, name: c.name, slug: c.slug })),
-  }));
-}
+import { SiteHeader } from "@/components/layout/SiteHeader";
+import { SiteFooter } from "@/components/layout/SiteFooter";
+import { SupportChat } from "@/components/support/SupportChat";
+import { getSetting } from "@/lib/settings";
 
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
-  const [settings, categories] = await Promise.all([
-    getSettings([
-      "store_name",
-      "announcement_bar",
-      "announcement_enabled",
-      "footer_about",
-      "contact_email",
-      "contact_phone",
-    ]),
-    getNavCategories(),
-  ]);
+  const disclaimer = await getSetting("footer_disclaimer");
+  const announcement = await getSetting("announcement");
 
   return (
-    <StoreShell settings={settings} categories={categories}>
-      {children}
-    </StoreShell>
+    <div className="min-h-screen bg-[var(--bg)] text-[var(--ink)]">
+      {announcement ? (
+        <div className="border-b border-white/10 bg-[#081018] px-4 py-2 text-center text-xs text-white/65">
+          {announcement}
+        </div>
+      ) : null}
+      <SiteHeader />
+      <main>{children}</main>
+      <SiteFooter disclaimer={disclaimer} />
+      <SupportChat />
+    </div>
   );
 }

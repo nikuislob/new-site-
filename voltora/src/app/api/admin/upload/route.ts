@@ -1,46 +1,31 @@
 import { NextRequest } from "next/server";
+import { AuthError, requireAdmin } from "@/lib/auth";
+import { errorJson, safeJson } from "@/lib/utils";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { nanoid } from "nanoid";
-import { requireAdmin, adminCan, AuthError } from "@/lib/auth";
-import { safeJson, errorJson } from "@/lib/utils";
-
-const MAX_SIZE = 5 * 1024 * 1024;
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 export async function POST(req: NextRequest) {
   try {
-    const admin = await requireAdmin();
-    if (!adminCan(admin.role, "products")) return errorJson("Forbidden", 403);
+    await requireAdmin();
+    const form = await req.formData();
+    const file = form.get("file");
+    if (!(file instanceof File)) return errorJson("File required", 400);
 
-    const formData = await req.formData();
-    const file = formData.get("file");
-
-    if (!file || !(file instanceof File)) {
-      return errorJson("No file provided", 400);
+    const maxMb = Number(process.env.MAX_UPLOAD_SIZE_MB || 5);
+    if (file.size > maxMb * 1024 * 1024) {
+      return errorJson(`File too large (max ${maxMb}MB)`, 400);
     }
 
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      return errorJson("Invalid file type. Allowed: JPEG, PNG, WebP, GIF", 400);
-    }
-
-    if (file.size > MAX_SIZE) {
-      return errorJson("File too large. Maximum size is 5MB", 400);
-    }
-
-    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-    const filename = `${nanoid()}.${ext}`;
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-
-    await mkdir(uploadDir, { recursive: true });
-
+    const ext = path.extname(file.name) || ".png";
+    const name = `${nanoid(12)}${ext}`;
+    const dir = path.join(process.cwd(), "public", "uploads");
+    await mkdir(dir, { recursive: true });
     const buffer = Buffer.from(await file.arrayBuffer());
-    await writeFile(path.join(uploadDir, filename), buffer);
-
-    const url = `/uploads/${filename}`;
-    return safeJson({ url }, 201);
-  } catch (e) {
-    if (e instanceof AuthError) return errorJson(e.message, e.status);
+    await writeFile(path.join(dir, name), buffer);
+    return safeJson({ url: `/uploads/${name}` });
+  } catch (err) {
+    if (err instanceof AuthError) return errorJson(err.message, err.status);
     return errorJson("Upload failed", 500);
   }
 }

@@ -1,122 +1,90 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { format } from "date-fns";
-import { Search } from "lucide-react";
-import { adminFetch } from "@/lib/admin-fetch";
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
 import { formatCurrency } from "@/lib/utils";
-import { DataTable } from "@/components/admin/DataTable";
-import { StatusBadge } from "@/components/admin/StatusBadge";
 
-type Order = {
-  id: string;
-  orderNumber: string;
-  customerName: string;
-  customerEmail: string;
-  total: number;
-  status: string;
-  paymentStatus: string;
-  createdAt: string;
-};
-
-const ORDER_STATUSES = [
-  "", "ORDER_CREATED", "PAYMENT_PENDING", "PAYMENT_CONFIRMED", "PROCESSING",
-  "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED", "CANCELLED", "REFUNDED",
-];
-
-const PAYMENT_STATUSES = ["", "PENDING", "CONFIRMED", "FAILED", "REFUNDED"];
-
-export default function OrdersPage() {
-  const [orders, setOrders] = useState<Order[]>([]);
+export default function AdminOrdersPage() {
+  const [orders, setOrders] = useState<any[]>([]);
   const [q, setQ] = useState("");
-  const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const params = new URLSearchParams();
-      if (search) params.set("q", search);
-      if (status) params.set("status", status);
-      if (paymentStatus) params.set("paymentStatus", paymentStatus);
-      const data = await adminFetch<{ orders: Order[] }>(`/api/admin/orders?${params}`);
-      setOrders(data.orders);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load orders");
-    } finally {
-      setLoading(false);
-    }
-  }, [search, status, paymentStatus]);
+  const load = async () => {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (status) params.set("status", status);
+    if (paymentStatus) params.set("paymentStatus", paymentStatus);
+    const res = await fetch(`/api/admin/orders?${params}`);
+    const data = await res.json();
+    setOrders(data.orders || []);
+  };
 
   useEffect(() => {
     load();
-  }, [load]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-white">Orders</h1>
-        <p className="mt-1 text-sm text-[#8b9cb8]">View and manage customer orders</p>
-      </div>
-
-      <div className="flex flex-col gap-3 lg:flex-row">
-        <form
-          className="flex flex-1 gap-2"
-          onSubmit={(e) => { e.preventDefault(); setSearch(q); }}
-        >
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6b7d9a]" aria-hidden />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search order #, name, email…"
-              className="w-full rounded-lg border border-[#1e2d45] bg-[#121a2b] py-2.5 pl-10 pr-3 text-sm text-white focus:border-[#00c2a8] focus:outline-none"
-            />
-          </div>
-          <button type="submit" className="rounded-lg border border-[#1e2d45] bg-[#182338] px-4 py-2 text-sm text-white">Search</button>
-        </form>
-        <select value={status} onChange={(e) => setStatus(e.target.value)} className="rounded-lg border border-[#1e2d45] bg-[#121a2b] px-3 py-2 text-sm text-white">
+      <h1 className="font-display text-4xl text-white">Orders</h1>
+      <div className="flex flex-wrap gap-3">
+        <Input placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-xs" />
+        <select className="input max-w-[180px]" value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">All statuses</option>
-          {ORDER_STATUSES.filter(Boolean).map((s) => (
-            <option key={s} value={s}>{s.replace(/_/g, " ")}</option>
-          ))}
-        </select>
-        <select value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value)} className="rounded-lg border border-[#1e2d45] bg-[#121a2b] px-3 py-2 text-sm text-white">
-          <option value="">All payments</option>
-          {PAYMENT_STATUSES.filter(Boolean).map((s) => (
+          {["PENDING","AWAITING_PAYMENT","AWAITING_VERIFICATION","PAID","TICKET_ISSUED","CANCELLED","REFUNDED"].map((s) => (
             <option key={s} value={s}>{s}</option>
           ))}
         </select>
+        <select className="input max-w-[180px]" value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value)}>
+          <option value="">All payments</option>
+          {["PENDING","AWAITING_VERIFICATION","PAID","FAILED","REFUNDED"].map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+        <Button onClick={load}>Filter</Button>
       </div>
 
-      {error ? <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300" role="alert">{error}</div> : null}
-
-      <DataTable
-        loading={loading}
-        data={orders}
-        keyExtractor={(o) => o.id}
-        columns={[
-          {
-            key: "order",
-            header: "Order",
-            cell: (o) => (
-              <Link href={`/admin/orders/${o.id}`} className="font-medium text-[#00c2a8] hover:underline">
-                {o.orderNumber}
-              </Link>
-            ),
-          },
-          { key: "customer", header: "Customer", cell: (o) => <div><div>{o.customerName}</div><div className="text-xs text-[#8b9cb8]">{o.customerEmail}</div></div> },
-          { key: "total", header: "Total", cell: (o) => formatCurrency(o.total) },
-          { key: "status", header: "Status", cell: (o) => <StatusBadge status={o.status} variant="order" /> },
-          { key: "payment", header: "Payment", cell: (o) => <StatusBadge status={o.paymentStatus} variant="payment" /> },
-          { key: "date", header: "Date", cell: (o) => format(new Date(o.createdAt), "MMM d, yyyy") },
-        ]}
-      />
+      <div className="overflow-x-auto rounded-2xl border border-white/10">
+        <table className="min-w-full text-left text-sm">
+          <thead className="bg-white/5 text-white/50">
+            <tr>
+              <th className="px-3 py-3">Order ID</th>
+              <th className="px-3 py-3">Customer</th>
+              <th className="px-3 py-3">Email</th>
+              <th className="px-3 py-3">Match</th>
+              <th className="px-3 py-3">Category</th>
+              <th className="px-3 py-3">Qty</th>
+              <th className="px-3 py-3">Amount</th>
+              <th className="px-3 py-3">Method</th>
+              <th className="px-3 py-3">Payment</th>
+              <th className="px-3 py-3">Ticket</th>
+              <th className="px-3 py-3">Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            {orders.map((o) => (
+              <tr key={o.id} className="border-t border-white/5">
+                <td className="px-3 py-3">
+                  <Link className="text-[var(--brand)]" href={`/admin/orders/${o.id}`}>{o.orderNumber}</Link>
+                </td>
+                <td className="px-3 py-3">{o.customerName}</td>
+                <td className="px-3 py-3">{o.customerEmail}</td>
+                <td className="px-3 py-3">{o.match?.title}</td>
+                <td className="px-3 py-3">{o.items?.[0]?.categoryName}</td>
+                <td className="px-3 py-3">{o.quantity}</td>
+                <td className="px-3 py-3">{formatCurrency(o.totalCents)}</td>
+                <td className="px-3 py-3">{o.paymentMethodName}</td>
+                <td className="px-3 py-3">{o.paymentStatus}</td>
+                <td className="px-3 py-3">{o.ticketStatus}</td>
+                <td className="px-3 py-3">{new Date(o.createdAt).toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

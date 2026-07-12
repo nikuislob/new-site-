@@ -1,95 +1,87 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { MessageCircle, Send, X } from "lucide-react";
+import { useChat } from "@/components/providers/ChatProvider";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
-import { Spinner } from "@/components/ui/Spinner";
-import { cn } from "@/lib/utils";
+import { Textarea } from "@/components/ui/Textarea";
 
-interface ChatMessage {
+type Message = {
   id: string;
-  body: string;
-  senderName: string;
   senderType: string;
+  senderName: string;
+  body: string;
   createdAt: string;
-}
-
-interface UserOrder {
-  id: string;
-  orderNumber: string;
-  status: string;
-  total: number;
-}
+};
 
 export function SupportChat() {
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [conversationId, setConversationId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const { open, setOpen, prefill } = useChat();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [body, setBody] = useState("");
-  const [guestName, setGuestName] = useState("");
-  const [guestEmail, setGuestEmail] = useState("");
-  const [orderId, setOrderId] = useState("");
-  const [orders, setOrders] = useState<UserOrder[]>([]);
-  const [user, setUser] = useState<{ firstName: string; email: string } | null>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [tag, setTag] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!open) return;
-    (async () => {
+    if (prefill?.message) setBody(prefill.message);
+    if (prefill?.tag) setTag(prefill.tag);
+  }, [prefill]);
+
+  useEffect(() => {
+    if (!open || !conversationId || !email) return;
+    const poll = async () => {
       try {
-        const meRes = await fetch("/api/auth/me");
-        if (meRes.ok) {
-          const me = await meRes.json();
-          if (me.user) {
-            setUser(me.user);
-            setGuestName(`${me.user.firstName} ${me.user.lastName || ""}`.trim());
-            setGuestEmail(me.user.email);
-            const ordersRes = await fetch("/api/orders?mine=1");
-            if (ordersRes.ok) {
-              const data = await ordersRes.json();
-              setOrders(data.orders || []);
-            }
-          }
-        }
+        const res = await fetch(
+          `/api/support/${conversationId}?email=${encodeURIComponent(email)}`
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        setMessages(data.conversation?.messages || []);
       } catch {
-        /* guest mode */
+        /* ignore poll errors */
       }
-    })();
-  }, [open]);
+    };
+    poll();
+    const id = window.setInterval(poll, 4000);
+    return () => window.clearInterval(id);
+  }, [open, conversationId, email]);
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  const sendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const send = async () => {
+    setError(null);
     if (!body.trim()) return;
-    if (!user && (!guestName.trim() || !guestEmail.trim())) return;
-
+    if (!conversationId && (!name.trim() || !email.trim())) {
+      setError("Name and email are required to start chat.");
+      return;
+    }
     setLoading(true);
     try {
-      const res = await fetch("/api/support", {
+      const res = await fetch(conversationId ? `/api/support/${conversationId}` : "/api/support", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(email ? { "x-guest-email": email } : {}),
+        },
         body: JSON.stringify({
-          body: body.trim(),
-          conversationId: conversationId || undefined,
-          guestName: guestName.trim(),
-          guestEmail: guestEmail.trim(),
-          orderId: orderId || undefined,
-          subject: "Store support",
+          body,
+          conversationId,
+          guestName: name,
+          guestEmail: email,
+          subject: prefill?.subject || "Ticket support",
+          tag,
+          currentPage: typeof window !== "undefined" ? window.location.pathname : undefined,
         }),
       });
-      if (!res.ok) throw new Error("Failed");
       const data = await res.json();
-      setConversationId(data.conversationId);
-      setMessages(data.messages || []);
+      if (!res.ok) throw new Error(data.error || "Unable to send");
+      setConversationId(data.conversationId || data.conversation?.id);
+      setMessages(data.conversation?.messages || []);
       setBody("");
-    } catch {
-      /* ignore */
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to send message");
     } finally {
       setLoading(false);
     }
@@ -100,83 +92,86 @@ export function SupportChat() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={cn(
-          "fixed bottom-5 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--bg)] text-white shadow-[0_16px_40px_rgba(11,18,32,0.35)] transition hover:scale-105",
-          open && "pointer-events-none opacity-0"
-        )}
-        aria-label="Open support chat"
+        className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-[var(--brand)] px-4 py-3 font-bold text-[#04150e] shadow-[0_12px_40px_rgba(46,229,157,0.35)] transition hover:scale-[1.02] md:bottom-6 md:right-6"
+        aria-label="Chat now"
       >
-        <MessageCircle className="h-6 w-6 text-[var(--brand)]" />
+        <MessageCircle className="h-5 w-5" />
+        <span className="text-sm tracking-wide">CHAT NOW</span>
       </button>
 
       {open ? (
-        <div className="fixed bottom-5 right-5 z-50 flex h-[min(560px,80vh)] w-[min(380px,calc(100vw-2rem))] flex-col overflow-hidden rounded-[var(--radius)] border border-[var(--line)] bg-white shadow-2xl animate-fade-up">
-          <div className="flex items-center justify-between bg-[var(--bg)] px-4 py-3 text-white">
+        <div className="fixed inset-x-3 bottom-20 z-50 mx-auto flex max-h-[75vh] w-auto max-w-md flex-col overflow-hidden rounded-3xl border border-white/15 bg-[#0a1422]/95 shadow-2xl backdrop-blur-xl sm:inset-x-auto sm:right-6 sm:bottom-24 sm:w-[380px]">
+          <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
             <div>
-              <p className="font-display font-semibold">Voltora Support</p>
-              <p className="text-xs text-[#9fb0cb]">US-based help · typically under 5 min</p>
+              <div className="font-display text-xl tracking-[0.08em] text-white">Live Support</div>
+              <div className="text-xs text-white/50">Tickets · Payments · Bulk bookings</div>
             </div>
-            <button type="button" onClick={() => setOpen(false)} aria-label="Close chat" className="rounded-full p-1.5 hover:bg-white/10">
+            <button
+              type="button"
+              className="rounded-full p-2 text-white/60 hover:bg-white/5"
+              aria-label="Close chat"
+              onClick={() => setOpen(false)}
+            >
               <X className="h-4 w-4" />
             </button>
           </div>
 
-          {!user ? (
-            <div className="grid gap-2 border-b border-[var(--line)] p-3">
-              <Input label="Your name" value={guestName} onChange={(e) => setGuestName(e.target.value)} className="text-sm" />
-              <Input label="Email" type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} className="text-sm" />
-            </div>
-          ) : orders.length > 0 ? (
-            <div className="border-b border-[var(--line)] p-3">
-              <Select
-                label="Related order (optional)"
-                value={orderId}
-                onChange={(e) => setOrderId(e.target.value)}
-                options={orders.map((o) => ({
-                  value: o.id,
-                  label: `${o.orderNumber} · ${o.status}`,
-                }))}
-                placeholder="Select an order"
-              />
-            </div>
-          ) : null}
-
-          <div className="flex-1 space-y-3 overflow-y-auto p-4">
+          <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
             {messages.length === 0 ? (
-              <p className="text-center text-sm text-[var(--ink-muted)]">
-                Hi! Ask about orders, products, or delivery — we&apos;re here to help.
+              <p className="text-sm text-white/55">
+                Ask about tickets, payment verification, or group bookings. Never share card numbers
+                or passwords here.
               </p>
             ) : (
-              messages.map((msg) => (
+              messages.map((m) => (
                 <div
-                  key={msg.id}
-                  className={cn(
-                    "max-w-[85%] rounded-2xl px-3 py-2 text-sm",
-                    msg.senderType === "customer"
-                      ? "ml-auto bg-[var(--brand-soft)] text-[#067260]"
-                      : "bg-[var(--surface)] text-[var(--ink)]"
-                  )}
+                  key={m.id}
+                  className={`rounded-2xl px-3 py-2 text-sm ${
+                    m.senderType === "customer"
+                      ? "ml-8 bg-[var(--brand-soft)] text-white"
+                      : "mr-8 bg-white/8 text-white/90"
+                  }`}
                 >
-                  <p className="text-[10px] font-semibold uppercase tracking-wide opacity-70">{msg.senderName}</p>
-                  <p className="mt-0.5">{msg.body}</p>
+                  <div className="mb-1 text-[10px] uppercase tracking-[0.12em] text-white/45">
+                    {m.senderName}
+                  </div>
+                  {m.body}
                 </div>
               ))
             )}
-            <div ref={bottomRef} />
           </div>
 
-          <form onSubmit={sendMessage} className="flex gap-2 border-t border-[var(--line)] p-3">
-            <input
+          <div className="space-y-2 border-t border-white/10 p-4">
+            {!conversationId ? (
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Input
+                  placeholder="Your name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  aria-label="Your name"
+                />
+                <Input
+                  placeholder="Email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  aria-label="Email"
+                />
+              </div>
+            ) : null}
+            <Textarea
+              rows={3}
+              placeholder="Type your message..."
               value={body}
               onChange={(e) => setBody(e.target.value)}
-              placeholder="Type your message..."
-              className="input flex-1 text-sm"
               aria-label="Message"
             />
-            <Button type="submit" disabled={loading || !body.trim()} className="px-3">
-              {loading ? <Spinner size="sm" className="border-[#04241f]" /> : <Send className="h-4 w-4" />}
+            {error ? <p className="text-xs text-[var(--danger)]">{error}</p> : null}
+            <Button fullWidth loading={loading} onClick={send}>
+              <Send className="h-4 w-4" />
+              Send
             </Button>
-          </form>
+          </div>
         </div>
       ) : null}
     </>

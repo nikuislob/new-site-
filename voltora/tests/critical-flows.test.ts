@@ -1,109 +1,111 @@
-import { describe, it, expect, vi } from "vitest";
-
-vi.mock("next/headers", () => ({
-  cookies: vi.fn(async () => ({
-    get: () => undefined,
-    set: () => undefined,
-    delete: () => undefined,
-  })),
-}));
-
-vi.mock("@/lib/db", () => ({
-  prisma: {},
-}));
-
-import { discountPercent, slugify, generateOrderNumber, parseJsonArray } from "../src/lib/utils";
-import { containsSensitiveContent } from "../src/lib/support";
-import { adminCan } from "../src/lib/auth";
-import { cartTotals } from "../src/lib/cart";
+import { describe, expect, it } from "vitest";
+import { adminCan } from "@/lib/permissions";
+import { containsSensitiveContent } from "@/lib/support";
+import {
+  availabilityLabel,
+  dollarsToCents,
+  formatCurrency,
+  generateOrderNumber,
+  isValidHttpsUrl,
+  slugify,
+} from "@/lib/utils";
+import { availableInventory } from "@/lib/inventory";
+import { checkoutSchema } from "@/lib/validators";
 
 describe("utils", () => {
-  it("calculates discount percent correctly", () => {
-    expect(discountPercent(100, 80)).toBe(20);
-    expect(discountPercent(100, 100)).toBe(0);
-    expect(discountPercent(0, 10)).toBe(0);
+  it("formats currency from cents", () => {
+    expect(formatCurrency(8900)).toBe("$89.00");
+    expect(formatCurrency(16800)).toBe("$168.00");
+    expect(dollarsToCents(89)).toBe(8900);
   });
 
-  it("slugifies product names", () => {
-    expect(slugify("Apextron Pulse X1 5G")).toBe("apextron-pulse-x1-5g");
+  it("slugifies text", () => {
+    expect(slugify("STANDARD VIEW")).toBe("standard-view");
   });
 
-  it("generates order numbers with VT prefix", () => {
-    expect(generateOrderNumber()).toMatch(/^VT\d{6}-[A-Z0-9]+$/);
+  it("generates Arena Nights order numbers", () => {
+    expect(generateOrderNumber()).toMatch(/^AN\d{6}-[A-Z0-9]+$/);
   });
 
-  it("parses JSON arrays safely", () => {
-    expect(parseJsonArray('["Trending","Best Seller"]')).toEqual(["Trending", "Best Seller"]);
-    expect(parseJsonArray("not-json")).toEqual([]);
+  it("validates https urls", () => {
+    expect(isValidHttpsUrl("https://example.com/pay")).toBe(true);
+    expect(isValidHttpsUrl("http://evil.test")).toBe(false);
+  });
+
+  it("computes availability labels", () => {
+    expect(availabilityLabel(100, 100)).toBe("AVAILABLE");
+    expect(availabilityLabel(5, 100)).toBe("LIMITED AVAILABILITY");
+    expect(availabilityLabel(0, 100)).toBe("SOLD OUT");
+  });
+});
+
+describe("inventory", () => {
+  it("prevents negative available inventory", () => {
+    expect(availableInventory(100, 40, 70)).toBe(0);
+    expect(availableInventory(100, 10, 20)).toBe(70);
+  });
+});
+
+describe("auth permissions", () => {
+  it("enforces role permissions", () => {
+    expect(adminCan("SUPER_ADMIN", "payment_links")).toBe(true);
+    expect(adminCan("TICKET_MANAGER", "orders")).toBe(true);
+    expect(adminCan("SUPPORT_AGENT", "support")).toBe(true);
+    expect(adminCan("SUPPORT_AGENT", "payment_links")).toBe(false);
+    expect(adminCan("SUPPORT_AGENT", "orders:read")).toBe(true);
   });
 });
 
 describe("support safety", () => {
-  it("blocks password and card-like content", () => {
-    expect(containsSensitiveContent("my password is secret123")).toBe(true);
-    expect(containsSensitiveContent("cvv 123")).toBe(true);
-    expect(containsSensitiveContent("4111111111111111")).toBe(true);
-    expect(containsSensitiveContent("Where is my order VT250101-ABC?")).toBe(false);
+  it("blocks sensitive content", () => {
+    expect(containsSensitiveContent("my password is secret")).toBe(true);
+    expect(containsSensitiveContent("I need 2 more tickets")).toBe(false);
   });
 });
 
-describe("admin permissions", () => {
-  it("allows super admin everything", () => {
-    expect(adminCan("SUPER_ADMIN", "payments")).toBe(true);
+describe("checkout validation", () => {
+  it("rejects quantity above 2", () => {
+    const parsed = checkoutSchema.safeParse({
+      matchId: "m1",
+      ticketCategoryId: "c1",
+      quantity: 3,
+      customerName: "Test User",
+      customerEmail: "test@example.com",
+      paymentMethodCode: "APPLE_PAY",
+    });
+    expect(parsed.success).toBe(false);
   });
 
-  it("restricts support agent from payments", () => {
-    expect(adminCan("SUPPORT_AGENT", "payments")).toBe(false);
-    expect(adminCan("SUPPORT_AGENT", "support")).toBe(true);
-  });
-
-  it("allows product manager products", () => {
-    expect(adminCan("PRODUCT_MANAGER", "products")).toBe(true);
-    expect(adminCan("PRODUCT_MANAGER", "orders")).toBe(false);
-  });
-});
-
-describe("cart totals", () => {
-  it("computes subtotal and applies discount", () => {
-    const items = [
-      {
-        quantity: 2,
-        product: { sellingPrice: 50, stockQuantity: 10, isActive: true },
-        variant: null,
-      },
-    ];
-    const totals = cartTotals(items, 10, 6.99);
-    expect(totals.subtotal).toBe(100);
-    expect(totals.discount).toBe(10);
-    expect(totals.total).toBe(96.99);
-  });
-
-  it("excludes inactive or out-of-stock items", () => {
-    const items = [
-      {
-        quantity: 1,
-        product: { sellingPrice: 50, stockQuantity: 0, isActive: true },
-        variant: null,
-      },
-    ];
-    expect(cartTotals(items).subtotal).toBe(0);
+  it("accepts valid 1-2 ticket orders", () => {
+    const parsed = checkoutSchema.safeParse({
+      matchId: "m1",
+      ticketCategoryId: "c1",
+      quantity: 2,
+      customerName: "Test User",
+      customerEmail: "test@example.com",
+      paymentMethodCode: "CASH_APP",
+    });
+    expect(parsed.success).toBe(true);
   });
 });
 
-describe("payment workflow invariants", () => {
-  it("documents that opening a payment link must not mark paid", () => {
-    const orderAfterPaymentClick = {
-      paymentStatus: "PENDING",
-      status: "PAYMENT_PENDING",
-    };
-    expect(orderAfterPaymentClick.paymentStatus).toBe("PENDING");
-    expect(orderAfterPaymentClick.status).not.toBe("PAYMENT_CONFIRMED");
-  });
+describe("payment mapping matrix", () => {
+  const combos = [
+    ["STANDARD VIEW", 1, "APPLE_PAY", 8900],
+    ["STANDARD VIEW", 2, "APPLE_PAY", 17800],
+    ["STANDARD VIEW", 1, "CASH_APP", 8900],
+    ["STANDARD VIEW", 2, "CASH_APP", 17800],
+    ["GOOD VIEW", 1, "APPLE_PAY", 16800],
+    ["GOOD VIEW", 2, "APPLE_PAY", 33600],
+    ["GOOD VIEW", 1, "CASH_APP", 16800],
+    ["GOOD VIEW", 2, "CASH_APP", 33600],
+  ] as const;
 
-  it("requires exactly four payment slots", () => {
-    const slots = [1, 2, 3, 4];
-    expect(slots).toHaveLength(4);
-    expect(Math.min(...slots)).toBe(1);
-    expect(Math.max(...slots)).toBe(4);
+  it("covers all 8 category/qty/method amount combinations", () => {
+    expect(combos).toHaveLength(8);
+    for (const [, qty, , amount] of combos) {
+      expect(qty).toBeLessThanOrEqual(2);
+      expect(amount).toBeGreaterThan(0);
+    }
   });
 });

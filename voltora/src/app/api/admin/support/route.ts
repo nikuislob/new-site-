@@ -1,49 +1,37 @@
 import { NextRequest } from "next/server";
-import { requireAdmin, adminCan, AuthError } from "@/lib/auth";
+import { AuthError, adminCan, requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { safeJson, errorJson } from "@/lib/utils";
-import type { Prisma } from "@prisma/client";
+import { errorJson, safeJson } from "@/lib/utils";
 
 export async function GET(req: NextRequest) {
   try {
     const admin = await requireAdmin();
     if (!adminCan(admin.role, "support")) return errorJson("Forbidden", 403);
-
-    const sp = req.nextUrl.searchParams;
-    const status = sp.get("status");
-    const q = sp.get("q")?.trim();
-    const page = Math.max(1, Number(sp.get("page") || 1));
-    const limit = Math.min(100, Math.max(1, Number(sp.get("limit") || 20)));
-
-    const where: Prisma.ConversationWhereInput = {};
-    if (status === "OPEN" || status === "CLOSED") where.status = status;
+    const status = req.nextUrl.searchParams.get("status") || undefined;
+    const q = req.nextUrl.searchParams.get("q")?.trim();
+    const where: Record<string, unknown> = {};
+    if (status) where.status = status;
     if (q) {
       where.OR = [
-        { guestEmail: { contains: q } },
         { guestName: { contains: q } },
+        { guestEmail: { contains: q } },
         { subject: { contains: q } },
+        { tag: { contains: q } },
       ];
     }
-
-    const [total, conversations] = await Promise.all([
-      prisma.conversation.count({ where }),
-      prisma.conversation.findMany({
-        where,
-        include: {
-          user: { select: { id: true, email: true, firstName: true, lastName: true } },
-          assignedTo: { select: { id: true, name: true, email: true } },
-          order: { select: { id: true, orderNumber: true } },
-          messages: { orderBy: { createdAt: "desc" }, take: 1 },
-        },
-        orderBy: { lastMessageAt: "desc" },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-    ]);
-
-    return safeJson({ conversations, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } });
-  } catch (e) {
-    if (e instanceof AuthError) return errorJson(e.message, e.status);
-    return errorJson("Failed to fetch conversations", 500);
+    const conversations = await prisma.conversation.findMany({
+      where,
+      orderBy: { lastMessageAt: "desc" },
+      include: {
+        assignedTo: { select: { id: true, name: true } },
+        order: { select: { orderNumber: true } },
+        _count: { select: { messages: true } },
+      },
+      take: 100,
+    });
+    return safeJson({ conversations });
+  } catch (err) {
+    if (err instanceof AuthError) return errorJson(err.message, err.status);
+    return errorJson("Failed", 500);
   }
 }

@@ -1,56 +1,53 @@
 import { NextRequest } from "next/server";
-import { requireAdmin, adminCan, AuthError } from "@/lib/auth";
+import { AuthError, adminCan, logAdminActivity, requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { slugify, safeJson, errorJson } from "@/lib/utils";
-import { z } from "zod";
+import { availableInventory } from "@/lib/inventory";
+import { ticketCategorySchema } from "@/lib/validators";
+import { errorJson, safeJson } from "@/lib/utils";
 
-const categorySchema = z.object({
-  name: z.string().min(1).max(100).optional(),
-  description: z.string().max(500).optional().nullable(),
-  imageUrl: z.string().optional().nullable(),
-  parentId: z.string().optional().nullable(),
-  sortOrder: z.number().int().optional(),
-  isActive: z.boolean().optional(),
-});
-
-type Params = { params: Promise<{ id: string }> };
-
-export async function PATCH(req: NextRequest, { params }: Params) {
+export async function PATCH(
+  req: NextRequest,
+  ctx: { params: Promise<{ id: string }> }
+) {
   try {
     const admin = await requireAdmin();
     if (!adminCan(admin.role, "categories")) return errorJson("Forbidden", 403);
-
-    const { id } = await params;
+    const { id } = await ctx.params;
     const body = await req.json();
-    const parsed = categorySchema.safeParse(body);
-    if (!parsed.success) {
-      return errorJson(parsed.error.issues[0]?.message || "Validation failed", 400);
+    const parsed = ticketCategorySchema.partial().omit({ matchId: true }).safeParse(body);
+    if (!parsed.success) return errorJson("Invalid data", 400);
+
+    const existing = await prisma.ticketCategory.findUnique({ where: { id } });
+    if (!existing) return errorJson("Not found", 404);
+
+    if (parsed.data.totalInventory !== undefined) {
+      const used = existing.reservedCount + existing.soldCount;
+      if (parsed.data.totalInventory < used) {
+        return errorJson(
+          `Total inventory cannot be below reserved+sold (${used})`,
+          400
+        );
+      }
     }
 
-    const data: Record<string, unknown> = { ...parsed.data };
-    if (parsed.data.name) data.slug = slugify(parsed.data.name);
+    const category = await prisma.ticketCategory.update({
+      where: { id },
+      data: parsed.data,
+    });
 
-    const category = await prisma.category.update({ where: { id }, data });
-    return safeJson({ category });
-  } catch (e) {
-    if (e instanceof AuthError) return errorJson(e.message, e.status);
-    return errorJson("Failed to update category", 500);
-  }
-}
-
-export async function DELETE(_req: NextRequest, { params }: Params) {
-  try {
-    const admin = await requireAdmin();
-    if (!adminCan(admin.role, "categories")) return errorJson("Forbidden", 403);
-
-    const { id } = await params;
-    const count = await prisma.product.count({ where: { categoryId: id } });
-    if (count > 0) return errorJson("Cannot delete category with products", 400);
-
-    await prisma.category.delete({ where: { id } });
-    return safeJson({ success: true });
-  } catch (e) {
-    if (e instanceof AuthError) return errorJson(e.message, e.status);
-    return errorJson("Failed to delete category", 500);
+    await logAdminActivity(admin.id, "UPDATE_CATEGORY", "ticket_category", id);
+    return safeJson({
+      category: {
+        ...category,
+        available: availableInventory(
+          category.totalInventory,
+          category.reservedCount,
+          category.soldCount
+        ),
+      },
+    });
+  } catch (err) {
+    if (err instanceof AuthError) return errorJson(err.message, err.status);
+    return errorJson("Failed", 500);
   }
 }
