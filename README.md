@@ -1,11 +1,16 @@
-# Voltora E-Commerce Platform
+# FIFA Match Tickets + Voltora
 
-Complete production-ready US electronics marketplace.
+This repository contains:
 
-**Project directory:** [`voltora/`](./voltora/)
+| Project | Path | Description |
+|---------|------|-------------|
+| **FIFA Match Tickets** | [`fifa-tickets/`](./fifa-tickets/) | Full-stack FIFA ticket selling platform (public + admin) |
+| Voltora | [`voltora/`](./voltora/) | US electronics e-commerce marketplace |
+
+## FIFA Match Tickets (primary)
 
 ```bash
-cd voltora
+cd fifa-tickets
 npm install
 npx prisma db push
 npm run db:seed
@@ -14,5 +19,8 @@ npm run dev
 
 - Store: http://localhost:3000  
 - Admin: http://localhost:3000/admin/login  
+- Credentials: `admin@fifatickets.com` / `Admin@FIFA2026!`
 
-See [`voltora/README.md`](./voltora/README.md) for full documentation, demo credentials, and deployment notes.
+Downloadable package: **`fifa-tickets-platform.zip`**
+
+See [`fifa-tickets/README.md`](./fifa-tickets/README.md) for full documentation.

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 640" role="img" aria-label="AT&amp;T Stadium aerial view">
+  <defs>
+    <linearGradient id="sky3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a2740"/>
+      <stop offset="100%" stop-color="#123528"/>
+    </linearGradient>
+    <linearGradient id="pitch3" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1f9a55"/>
+      <stop offset="100%" stop-color="#146b3a"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="640" fill="url(#sky3)"/>
+  <rect x="140" y="120" width="920" height="400" rx="40" fill="#243048"/>
+  <rect x="200" y="160" width="800" height="320" rx="20" fill="#2d3d55"/>
+  <rect x="330" y="210" width="540" height="220" rx="6" fill="url(#pitch3)"/>
+  <rect x="330" y="210" width="540" height="220" rx="6" fill="none" stroke="#eef8f1" stroke-width="3"/>
+  <line x1="600" y1="210" x2="600" y2="430" stroke="#eef8f1" stroke-width="2"/>
+  <circle cx="600" cy="320" r="42" fill="none" stroke="#eef8f1" stroke-width="2"/>
+  <rect x="180" y="100" width="840" height="24" rx="8" fill="#c9a227" opacity="0.7"/>
+  <text x="600" y="590" text-anchor="middle" fill="#e8f5ee" font-family="Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="4">AT&amp;T STADIUM</text>
+</svg>
