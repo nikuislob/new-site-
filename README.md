@@ -1,6 +1,6 @@
-# Voltora E-Commerce Platform
+# Arena Nights
 
-Complete production-ready US electronics marketplace.
+Premium international football ticket booking platform.
 
 **Project directory:** [`voltora/`](./voltora/)
 
@@ -12,7 +12,9 @@ npm run db:seed
 npm run dev
 ```
 
-- Store: http://localhost:3000  
+- Public site: http://localhost:3000  
 - Admin: http://localhost:3000/admin/login  
 
-See [`voltora/README.md`](./voltora/README.md) for full documentation, demo credentials, and deployment notes.
+Independent championship branding — not affiliated with FIFA.
+
+See [`voltora/README.md`](./voltora/README.md) for full documentation.
