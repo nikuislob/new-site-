@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { adminFetch } from "@/lib/admin-fetch";
 import type { AdminRole } from "@/lib/auth";
+import { adminCan } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
 type AdminShellProps = {
@@ -28,11 +29,11 @@ type AdminShellProps = {
 };
 
 const navItems = [
-  { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/matches", label: "Matches", icon: CalendarDays },
-  { href: "/admin/orders", label: "Orders", icon: ReceiptText },
-  { href: "/admin/payments", label: "Payments", icon: CreditCard },
-  { href: "/admin/support", label: "Support Chat", icon: MessageSquare },
+  { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "dashboard" },
+  { href: "/admin/matches", label: "Matches", icon: CalendarDays, permission: "matches" },
+  { href: "/admin/orders", label: "Orders", icon: ReceiptText, permission: "orders:read" },
+  { href: "/admin/payments", label: "Payments", icon: CreditCard, permission: "payments" },
+  { href: "/admin/support", label: "Support Chat", icon: MessageSquare, permission: "support" },
 ];
 
 export function AdminShell({ children, admin }: AdminShellProps) {
@@ -40,6 +41,7 @@ export function AdminShell({ children, admin }: AdminShellProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const visibleNav = navItems.filter((item) => adminCan(admin.role, item.permission));
 
   async function logout() {
     setLoggingOut(true);
@@ -67,7 +69,7 @@ export function AdminShell({ children, admin }: AdminShellProps) {
       </div>
 
       <nav className="flex-1 space-y-1 px-3 py-5">
-        {navItems.map((item) => {
+        {visibleNav.map((item) => {
           const Icon = item.icon;
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (

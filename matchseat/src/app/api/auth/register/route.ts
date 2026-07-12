@@ -22,7 +22,11 @@ export async function POST(request: Request) {
       lastName: parsed.data.lastName.trim(),
       phone: parsed.data.phone?.trim() || null,
     },
+  }).catch((error: { code?: string }) => {
+    if (error?.code === "P2002") return null;
+    throw error;
   });
+  if (!user) return errorJson("An account already exists for this email.", 409);
 
   await setCustomerSession(user.id);
   return safeJson({ user: publicUser(user) }, 201);

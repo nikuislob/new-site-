@@ -248,7 +248,7 @@ async function main() {
       buttonText: "Pay with Apple Pay",
       instructions:
         "Complete payment with Apple Pay and include your PitchPass Order ID in the note so support can confirm your tickets quickly.",
-      isActive: true,
+      isActive: false,
       sortOrder: 2,
     },
   });

@@ -13,6 +13,7 @@ type OrderData = {
   ticketCount: number;
   paymentMethodName?: string | null;
   paymentUrlUsed?: string | null;
+  paymentMethod?: { name?: string | null } | null;
   items?: Array<{
     seatTier: string;
     quantity: number;
@@ -24,59 +25,65 @@ type OrderData = {
 
 export default function OrderPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ orderNumber: string }>;
-  searchParams: Promise<{ pay?: string; method?: string }>;
+  searchParams?: Promise<{ pay?: string; method?: string }>;
 }) {
-  return <OrderClient params={params} searchParams={searchParams} />;
+  return <OrderClient params={params} />;
 }
 
-function OrderClient({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ orderNumber: string }>;
-  searchParams: Promise<{ pay?: string; method?: string }>;
-}) {
+function OrderClient({ params }: { params: Promise<{ orderNumber: string }> }) {
   const [order, setOrder] = useState<OrderData | null>(null);
-  const [payUrl, setPayUrl] = useState("");
-  const [method, setMethod] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       const p = await params;
-      const sp = await searchParams;
-      setPayUrl(sp.pay || "");
-      setMethod(sp.method || "");
+      let guestEmail = "";
       try {
-        const res = await fetch(`/api/orders/${encodeURIComponent(p.orderNumber)}`);
+        const raw = sessionStorage.getItem("pitchpass_last_order");
+        if (raw) {
+          const saved = JSON.parse(raw) as { orderNumber?: string; guestEmail?: string };
+          if (saved.orderNumber === p.orderNumber && saved.guestEmail) {
+            guestEmail = saved.guestEmail;
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+
+      try {
+        const qs = guestEmail ? `?guestEmail=${encodeURIComponent(guestEmail)}` : "";
+        const res = await fetch(`/api/orders/${encodeURIComponent(p.orderNumber)}${qs}`);
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Order not found");
         setOrder(data.order);
-        if (!sp.pay && data.order?.paymentUrlUsed) setPayUrl(data.order.paymentUrlUsed);
-        if (!sp.method && data.order?.paymentMethodName) setMethod(data.order.paymentMethodName);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load order");
       } finally {
         setLoading(false);
       }
     })();
-  }, [params, searchParams]);
+  }, [params]);
 
   if (loading) return <div className="container-page py-12 text-[var(--ink-muted)]">Loading order…</div>;
   if (error || !order) {
     return (
       <div className="container-page py-12">
         <p className="text-[var(--danger)]">{error || "Order not found"}</p>
+        <p className="mt-2 text-sm text-[var(--ink-muted)]">
+          If you just checked out as a guest, reopen the link from this same browser, or sign in to your account.
+        </p>
         <Link href="/matches" className="btn btn-primary mt-4 inline-flex">
           Back to matches
         </Link>
       </div>
     );
   }
+
+  const payUrl = order.paymentUrlUsed || "";
+  const method = order.paymentMethodName || order.paymentMethod?.name || "";
 
   return (
     <div className="container-page py-12">
@@ -123,7 +130,8 @@ function OrderClient({
           <h2 className="font-display text-3xl font-bold">Pay now</h2>
           <p className="mt-2 text-sm text-[var(--ink-muted)]">
             Pay exactly {formatCurrency(order.totalCents)}
-            {method ? ` via ${method}` : ""}. Include your Order ID in the payment note. Opening this link does not mark the order paid.
+            {method ? ` via ${method}` : ""}. Include your Order ID in the payment note. Opening this link does not mark
+            the order paid.
           </p>
           {payUrl ? (
             <div className="mt-5 flex flex-col gap-3">

@@ -9,7 +9,7 @@ import { adminFetch } from "@/lib/admin-fetch";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@pitchpass.example");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -79,10 +79,7 @@ export default function AdminLoginPage() {
           </Button>
         </form>
 
-        <div className="mt-6 rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-900">
-          <p className="font-bold">Demo admin</p>
-          <p>admin@pitchpass.example / Admin123!</p>
-        </div>
+        <p className="mt-6 text-center text-xs text-slate-500">Operator access only. Contact the site owner if you need an account.</p>
       </section>
     </main>
   );

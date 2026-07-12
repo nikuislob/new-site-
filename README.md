@@ -17,6 +17,6 @@ npm run dev
 **Pricing:** Basic $70 · Premium $140 · max 2 tickets/customer  
 **Payments:** Cash App + Apple Pay links auto-matched to cart total ($70 / $140 / $210 / $280)
 
-See [`matchseat/README.md`](./matchseat/README.md) for credentials, zip download, and operator docs.
+See [`matchseat/README.md`](./matchseat/README.md) for operator docs and setup.
 
 Also includes the earlier [`voltora/`](./voltora/) electronics marketplace demo.

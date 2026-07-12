@@ -23,6 +23,8 @@ const orderInclude = {
   items: { include: { match: true } },
 };
 
+const STOCK_CONSUMING = new Set(["PAYMENT_PENDING", "PAYMENT_CONFIRMED", "FULFILLED"]);
+
 async function findOrder(id: string) {
   return prisma.order.findFirst({
     where: { OR: [{ id }, { orderNumber: id }] },
@@ -53,7 +55,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     const { id } = await context.params;
     const existing = await prisma.order.findFirst({
       where: { OR: [{ id }, { orderNumber: id }] },
-      select: { id: true },
+      include: { items: true },
     });
     if (!existing) return errorJson("Order not found.", 404);
 
@@ -63,20 +65,48 @@ export async function PATCH(request: Request, context: RouteContext) {
       return errorJson("Invalid order update.", 422, { issues: parsed.error.issues });
     }
 
-    const data: Prisma.OrderUpdateInput = {};
-    if (parsed.data.status) data.status = parsed.data.status.trim().toUpperCase();
-    if (parsed.data.paymentStatus) {
-      const paymentStatus = parsed.data.paymentStatus.trim().toUpperCase();
-      data.paymentStatus = paymentStatus;
-      if (paymentStatus === "CONFIRMED" || paymentStatus === "PAID") {
-        data.status = "PAYMENT_CONFIRMED";
+    let nextStatus = parsed.data.status?.trim().toUpperCase();
+    const nextPaymentStatus = parsed.data.paymentStatus?.trim().toUpperCase();
+
+    if (nextPaymentStatus === "CONFIRMED" || nextPaymentStatus === "PAID") {
+      // Confirm payment without downgrading a fulfilled order.
+      if (existing.status !== "FULFILLED" && existing.status !== "CANCELLED" && existing.status !== "FAILED") {
+        nextStatus = nextStatus || "PAYMENT_CONFIRMED";
       }
     }
 
-    const order = await prisma.order.update({
-      where: { id: existing.id },
-      data,
-      include: orderInclude,
+    const becomingCancelled =
+      (nextStatus === "CANCELLED" || nextStatus === "FAILED") &&
+      STOCK_CONSUMING.has(existing.status) &&
+      existing.status !== "CANCELLED" &&
+      existing.status !== "FAILED";
+
+    const order = await prisma.$transaction(async (tx) => {
+      if (becomingCancelled) {
+        for (const item of existing.items) {
+          if (item.seatTier === "BASIC") {
+            await tx.match.update({
+              where: { id: item.matchId },
+              data: { basicStock: { increment: item.quantity } },
+            });
+          } else if (item.seatTier === "PREMIUM") {
+            await tx.match.update({
+              where: { id: item.matchId },
+              data: { premiumStock: { increment: item.quantity } },
+            });
+          }
+        }
+      }
+
+      const data: Prisma.OrderUpdateInput = {};
+      if (nextStatus) data.status = nextStatus;
+      if (nextPaymentStatus) data.paymentStatus = nextPaymentStatus;
+
+      return tx.order.update({
+        where: { id: existing.id },
+        data,
+        include: orderInclude,
+      });
     });
 
     await logAdminActivity(admin.id, "UPDATE_ORDER", "Order", order.id, order.orderNumber);

@@ -12,12 +12,23 @@ export { adminCan } from "./permissions";
 const CUSTOMER_COOKIE = "pitchpass_session";
 const ADMIN_COOKIE = "pitchpass_admin_session";
 
+function requireSecret(name: "AUTH_SECRET" | "ADMIN_AUTH_SECRET", fallback: string) {
+  const value = process.env[name];
+  if (process.env.NODE_ENV === "production") {
+    if (!value || value.length < 32) {
+      throw new Error(`${name} must be set to a strong secret (32+ chars) in production.`);
+    }
+    return new TextEncoder().encode(value);
+  }
+  return new TextEncoder().encode(value || fallback);
+}
+
 function customerSecret() {
-  return new TextEncoder().encode(process.env.AUTH_SECRET || "dev-secret");
+  return requireSecret("AUTH_SECRET", "dev-secret");
 }
 
 function adminSecret() {
-  return new TextEncoder().encode(process.env.ADMIN_AUTH_SECRET || "dev-admin-secret");
+  return requireSecret("ADMIN_AUTH_SECRET", "dev-admin-secret");
 }
 
 export async function hashPassword(password: string): Promise<string> {

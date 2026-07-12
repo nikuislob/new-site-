@@ -34,8 +34,8 @@ export async function GET(request: Request) {
       const customer = await getCurrentCustomer();
       const ownsOrder = Boolean(customer && order.userId === customer.id);
       const guestMatches = Boolean(guestEmail && order.guestEmail?.toLowerCase() === guestEmail);
-      if (customer || guestEmail) {
-        if (!ownsOrder && !guestMatches) return errorJson("Forbidden", 403);
+      if (!ownsOrder && !guestMatches) {
+        return errorJson(customer || guestEmail ? "Forbidden" : "Unauthorized", customer || guestEmail ? 403 : 401);
       }
 
       return safeJson({ order });

@@ -63,14 +63,15 @@ npm run db:seed    # Seed matches, admins, payment methods
 npm run db:reset   # Reset DB + seed
 ```
 
-## Zip download
+## Zip archive (operators only)
 
-From the repo root after setup:
+From the repo root:
 
 ```bash
 ./scripts/make-pitchpass-zip.sh
-# or: zip -r pitchpass-tickets.zip matchseat -x 'matchseat/node_modules/*' 'matchseat/.next/*' 'matchseat/prisma/*.db*'
 ```
+
+Do not expose the zip on the public website.
 
 ## Tech
 

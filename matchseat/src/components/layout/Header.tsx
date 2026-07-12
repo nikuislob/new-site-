@@ -2,11 +2,12 @@ import Link from "next/link";
 import { getCurrentCustomer } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { CartButton } from "@/components/layout/CartButton";
+import { MobileNav } from "@/components/layout/MobileNav";
 
 export async function Header() {
   const [customer, announcement] = await Promise.all([
     getCurrentCustomer(),
-    prisma.siteSetting.findUnique({ where: { key: "announcement" } }),
+    prisma.siteSetting.findUnique({ where: { key: "announcement" } }).catch(() => null),
   ]);
 
   return (
@@ -16,7 +17,7 @@ export async function Header() {
           {announcement.value}
         </div>
       ) : null}
-      <div className="border-b border-[var(--line)] bg-white/90 backdrop-blur-md">
+      <div className="relative border-b border-[var(--line)] bg-white/90 backdrop-blur-md">
         <div className="container-page flex h-16 items-center justify-between gap-4">
           <Link href="/" className="font-display text-3xl font-extrabold tracking-wide text-[var(--brand-deep)]">
             PitchPass
@@ -30,9 +31,6 @@ export async function Header() {
             </Link>
             <Link href="/how-it-works" className="hover:text-[var(--brand)]">
               How it works
-            </Link>
-            <Link href="/download" className="hover:text-[var(--brand)]">
-              Download
             </Link>
             {customer ? (
               <Link href="/account" className="hover:text-[var(--brand)]">
@@ -49,6 +47,7 @@ export async function Header() {
             <Link href="/matches" className="btn btn-primary hidden sm:inline-flex">
               Buy tickets
             </Link>
+            <MobileNav customer={Boolean(customer)} />
           </div>
         </div>
       </div>

@@ -34,7 +34,7 @@ export default async function MatchDetailPage({
           </div>
         </div>
         <div className="mt-8 grid gap-2 text-sm text-[#d5ebe0] md:grid-cols-3">
-          <p>{format(new Date(match.kickoffAt), "EEEE, MMM d, yyyy · h:mm a")} ET</p>
+          <p>{format(new Date(match.kickoffAt), "EEEE, MMM d, yyyy · h:mm a")} UTC</p>
           <p>
             {match.venueName} · {match.venueCity}, {match.venueState}
           </p>

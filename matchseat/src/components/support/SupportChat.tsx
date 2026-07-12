@@ -14,6 +14,8 @@ interface ChatMessage {
   createdAt: string;
 }
 
+const STORAGE_KEY = "pitchpass_support_chat";
+
 export function SupportChat() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -25,6 +27,24 @@ export function SupportChat() {
   const [error, setError] = useState("");
   const [user, setUser] = useState<{ firstName: string; lastName?: string; email: string } | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw) as {
+          conversationId?: string;
+          guestName?: string;
+          guestEmail?: string;
+        };
+        if (saved.conversationId) setConversationId(saved.conversationId);
+        if (saved.guestName) setGuestName(saved.guestName);
+        if (saved.guestEmail) setGuestEmail(saved.guestEmail);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -49,6 +69,38 @@ export function SupportChat() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, open]);
 
+  useEffect(() => {
+    if (!open || !conversationId) return;
+
+    const load = async () => {
+      try {
+        const qs = new URLSearchParams({ conversationId });
+        if (guestEmail) qs.set("guestEmail", guestEmail);
+        const res = await fetch(`/api/support?${qs.toString()}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.conversation?.messages) setMessages(data.conversation.messages);
+      } catch {
+        /* ignore poll errors */
+      }
+    };
+
+    load();
+    const timer = window.setInterval(load, 4000);
+    return () => window.clearInterval(timer);
+  }, [open, conversationId, guestEmail]);
+
+  const persist = (nextId: string, name: string, email: string) => {
+    try {
+      sessionStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ conversationId: nextId, guestName: name, guestEmail: email })
+      );
+    } catch {
+      /* ignore */
+    }
+  };
+
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!body.trim()) return;
@@ -71,7 +123,11 @@ export function SupportChat() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to send");
-      setConversationId(data.conversation?.id || data.conversationId);
+      const nextId = data.conversation?.id || data.conversationId;
+      if (nextId) {
+        setConversationId(nextId);
+        persist(nextId, guestName.trim(), guestEmail.trim().toLowerCase());
+      }
       setMessages(data.conversation?.messages || data.messages || []);
       setBody("");
     } catch (err) {

@@ -52,9 +52,9 @@ export function LoginForm({ mode }: { mode: "login" | "register" }) {
       <p className="text-sm text-[var(--ink-muted)]">
         {mode === "login" ? (
           <>
-            Demo: demo@customer.example / Customer123! ·{" "}
+            New here?{" "}
             <Link href="/register" className="font-semibold text-[var(--brand-deep)] underline">
-              Register
+              Create an account
             </Link>
           </>
         ) : (

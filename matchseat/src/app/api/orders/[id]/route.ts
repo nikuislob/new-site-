@@ -25,10 +25,8 @@ export async function GET(request: Request, context: RouteContext) {
   const guestEmail = searchParams.get("guestEmail")?.toLowerCase().trim();
   const ownsOrder = Boolean(customer && order.userId === customer.id);
   const guestMatches = Boolean(guestEmail && order.guestEmail?.toLowerCase() === guestEmail);
-  // Order numbers are unguessable (nanoid); allow lookup for payment confirmation UX.
-  const publicOrderNumberLookup = id === order.orderNumber;
 
-  if (!ownsOrder && !guestMatches && !publicOrderNumberLookup) {
+  if (!ownsOrder && !guestMatches) {
     return errorJson(customer || guestEmail ? "Forbidden" : "Unauthorized", customer || guestEmail ? 403 : 401);
   }
 

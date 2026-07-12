@@ -33,7 +33,7 @@ export function MatchCard({ match }: { match: Match }) {
           {match.groupName ? <Badge className="bg-[var(--accent-soft)] text-[#8a6a16]">{match.groupName}</Badge> : null}
         </div>
         <p className="text-sm font-semibold text-[var(--ink)]">
-          {format(new Date(match.kickoffAt), "EEE, MMM d · h:mm a")} ET
+          {format(new Date(match.kickoffAt), "EEE, MMM d · h:mm a")} UTC
         </p>
         <p className="text-sm text-[var(--ink-muted)]">
           {match.venueName} · {match.venueCity}, {match.venueState}

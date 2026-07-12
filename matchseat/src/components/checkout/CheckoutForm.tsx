@@ -104,12 +104,21 @@ export function CheckoutForm() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Checkout failed");
-      clear();
       const orderNumber = data.order?.orderNumber || data.orderNumber;
-      const paymentUrl = data.paymentUrl;
-      router.push(
-        `/order/${orderNumber}?pay=${encodeURIComponent(paymentUrl || "")}&method=${encodeURIComponent(data.paymentMethod?.name || "")}`
-      );
+      if (!orderNumber) throw new Error("Checkout succeeded but no order number was returned.");
+      try {
+        sessionStorage.setItem(
+          "pitchpass_last_order",
+          JSON.stringify({
+            orderNumber,
+            guestEmail: form.guestEmail.trim().toLowerCase(),
+          })
+        );
+      } catch {
+        /* ignore storage errors */
+      }
+      clear();
+      router.push(`/order/${encodeURIComponent(orderNumber)}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Checkout failed");
     } finally {
