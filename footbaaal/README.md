@@ -2,7 +2,7 @@
 
 ## Fastest way (no install)
 
-1. Unzip `footbaaal.zip`
+1. Unzip `rajuhero.zip`
 2. Open the `footbaaal` folder
 3. Double-click **`index.html`**
 

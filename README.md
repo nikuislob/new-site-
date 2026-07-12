@@ -2,12 +2,12 @@
 
 ## Download
 
-**[footbaaal.zip](./footbaaal.zip)**  
-Direct: https://github.com/nikuislob/new-site-/raw/cursor/pitchora-ticket-platform-ae89/footbaaal.zip
+**[rajuhero.zip](./rajuhero.zip)**  
+Direct: https://github.com/nikuislob/new-site-/raw/cursor/pitchora-ticket-platform-ae89/rajuhero.zip
 
 ## How to open (no Node / npm needed)
 
-1. Unzip `footbaaal.zip`
+1. Unzip `rajuhero.zip`
 2. Open the `footbaaal` folder
 3. Double-click **`index.html`**
 
