@@ -1,18 +1,22 @@
-# Voltora E-Commerce Platform
+# Pitchora Football Ticketing + Voltora E-Commerce
 
-Complete production-ready US electronics marketplace.
+This repository contains:
 
-**Project directory:** [`voltora/`](./voltora/)
+1. **[`pitchora/`](./pitchora/)** — Premium football ticket booking platform (primary deliverable)
+2. **[`voltora/`](./voltora/)** — Existing US electronics marketplace
+
+## Pitchora (recommended)
 
 ```bash
-cd voltora
+cd pitchora
 npm install
 npx prisma db push
 npm run db:seed
 npm run dev
 ```
 
-- Store: http://localhost:3000  
+- Site: http://localhost:3000  
 - Admin: http://localhost:3000/admin/login  
+- Credentials: `admin@pitchora.com` / `Admin123!`
 
-See [`voltora/README.md`](./voltora/README.md) for full documentation, demo credentials, and deployment notes.
+See [`pitchora/README.md`](./pitchora/README.md) for full documentation.

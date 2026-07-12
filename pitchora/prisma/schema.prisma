@@ -1,0 +1,177 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         String    @default("ADMIN")
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Team {
+  id        String   @id @default(cuid())
+  name      String
+  shortName String
+  country   String
+  logoUrl   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  homeMatches Match[] @relation("HomeTeam")
+  awayMatches Match[] @relation("AwayTeam")
+}
+
+model Match {
+  id               String   @id @default(cuid())
+  homeTeamId       String
+  awayTeamId       String
+  kickoffAt        DateTime
+  stadium          String
+  country          String
+  city             String?
+  stadiumImageUrl  String?
+  upperSeatsTotal  Int      @default(200)
+  closerSeatsTotal Int      @default(100)
+  upperSeatsSold   Int      @default(0)
+  closerSeatsSold  Int      @default(0)
+  isFeatured       Boolean  @default(false)
+  status           String   @default("UPCOMING")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  homeTeam     Team          @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam     Team          @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  orders       Order[]
+  bulkRequests BulkRequest[]
+  seats        Seat[]
+
+  @@index([kickoffAt])
+  @@index([status])
+}
+
+model Seat {
+  id        String   @id @default(cuid())
+  matchId   String
+  section   String
+  row       String
+  number    Int
+  category  String
+  status    String   @default("AVAILABLE")
+  orderId   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  match Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  order Order? @relation(fields: [orderId], references: [id])
+
+  @@unique([matchId, section, row, number])
+  @@index([matchId, category, status])
+  @@index([orderId])
+}
+
+model Order {
+  id              String   @id @default(cuid())
+  orderNumber     String   @unique
+  customerName    String
+  customerEmail   String
+  customerPhone   String
+  matchId         String
+  ticketCategory  String
+  quantity        Int
+  seatLabels      String
+  unitPrice       Float
+  subtotal        Float
+  serviceFee      Float    @default(0)
+  taxAmount       Float    @default(0)
+  originalTotal   Float
+  paymentAmount   Float
+  paymentMethod   String
+  paymentStatus   String   @default("PENDING")
+  paymentLinkUsed String?
+  qrPayload       String
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  match Match  @relation(fields: [matchId], references: [id])
+  seats Seat[]
+
+  @@index([customerEmail])
+  @@index([paymentStatus])
+  @@index([createdAt])
+}
+
+model BulkRequest {
+  id           String   @id @default(cuid())
+  name         String
+  email        String
+  phone        String
+  matchId      String?
+  matchLabel   String?
+  quantity     Int
+  message      String?
+  status       String   @default("PENDING")
+  adminReply   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  match Match? @relation(fields: [matchId], references: [id])
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Settings {
+  id                    String  @id @default("default")
+  upperSeatPrice        Float   @default(89)
+  closerSeatPrice       Float   @default(218)
+  maxTicketsPerOrder    Int     @default(2)
+  serviceFeeEnabled     Boolean @default(false)
+  serviceFeePercent     Float   @default(0)
+  taxEnabled            Boolean @default(false)
+  taxPercent            Float   @default(0)
+  uniquePaymentEnabled  Boolean @default(true)
+  upperApplePayUrl      String  @default("https://apple.com/apple-pay")
+  upperCashAppUrl       String  @default("https://cash.app")
+  closerApplePayUrl     String  @default("https://apple.com/apple-pay")
+  closerCashAppUrl      String  @default("https://cash.app")
+  siteName              String  @default("Pitchora")
+  heroHeadline          String  @default("Book Your Football Tickets")
+  heroSubheadline       String  @default("Premium seats. Iconic stadiums. Unforgettable nights.")
+  heroImageUrl          String?
+  contactEmail          String  @default("support@pitchora.com")
+  contactPhone          String  @default("+1 (555) 014-2200")
+  contactAddress        String  @default("1200 Arena Boulevard, Suite 400, Austin, TX 78701")
+  whatsappUrl           String  @default("https://wa.me/15550142200")
+  liveChatEnabled       Boolean @default(true)
+  footerText            String  @default("Premium football ticket experiences worldwide.")
+  faqJson               String  @default("[]")
+  privacyPolicy         String  @default("")
+  termsAndConditions    String  @default("")
+  updatedAt             DateTime @updatedAt
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String
+  message   String
+  status    String   @default("NEW")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
