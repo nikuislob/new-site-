@@ -18,12 +18,14 @@ export function Footer() {
             <Link href="/seating">Seating map</Link>
             <Link href="/cart">Cart</Link>
             <Link href="/login">Sign in</Link>
+            <Link href="/download">Download zip</Link>
           </div>
         </div>
         <div>
           <p className="font-display text-xl font-bold text-white">Support</p>
           <div className="mt-3 grid gap-2 text-sm">
             <Link href="/how-it-works">How payment works</Link>
+            <Link href="/download">Download zip</Link>
             <Link href="/account">My orders</Link>
             <p className="text-[#9fb8aa]">Use Chat Now anytime — US-based help.</p>
           </div>

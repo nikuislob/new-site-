@@ -31,6 +31,9 @@ export async function Header() {
             <Link href="/how-it-works" className="hover:text-[var(--brand)]">
               How it works
             </Link>
+            <Link href="/download" className="hover:text-[var(--brand)]">
+              Download
+            </Link>
             {customer ? (
               <Link href="/account" className="hover:text-[var(--brand)]">
                 Account
