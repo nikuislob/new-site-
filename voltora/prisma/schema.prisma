@@ -3,422 +3,56 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id                String    @id @default(cuid())
-  email             String    @unique
-  passwordHash      String
-  firstName         String
-  lastName          String
-  phone             String?
-  phoneVerified     Boolean   @default(false)
-  emailVerified     Boolean   @default(false)
-  emailVerifyToken  String?
-  emailVerifyExpiry DateTime?
-  resetToken        String?
-  resetTokenExpiry  DateTime?
-  isActive          Boolean   @default(true)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+/// Upcoming football matches available for ticket sales
+model Match {
+  id                 String   @id @default(uuid()) @db.Uuid
+  homeTeam           String   @map("home_team")
+  awayTeam           String   @map("away_team")
+  venue              String
+  stadiumViewUrl     String   @map("stadium_view_url")
+  matchDate          DateTime @map("match_date") @db.Timestamptz(6)
+  standardAvailable  Int      @map("standard_available")
+  premiumAvailable   Int      @map("premium_available")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  orders             Order[]
 
-  addresses     Address[]
-  cart          Cart?
-  wishlist      WishlistItem[]
-  orders        Order[]
-  conversations Conversation[]
-  recentlyViewed RecentlyViewed[]
-
-  @@index([email])
-  @@index([emailVerifyToken])
-  @@index([resetToken])
+  @@index([matchDate])
+  @@map("matches")
 }
 
-model Address {
-  id         String   @id @default(cuid())
-  userId     String
-  label      String   @default("Home")
-  fullName   String
-  phone      String?
-  line1      String
-  line2      String?
-  city       String
-  state      String
-  zipCode    String
-  country    String   @default("United States")
-  isDefault  Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+/// Customer ticket orders with manual Apple Pay / Cash App payment-link workflow
+model Order {
+  id               String   @id @default(uuid()) @db.Uuid
+  matchId          String   @map("match_id") @db.Uuid
+  customerEmail    String   @map("customer_email")
+  customerName     String?  @map("customer_name")
+  ticketType       String   @map("ticket_type") // 'standard' | 'premium'
+  quantity         Int
+  totalPrice       Decimal  @map("total_price") @db.Decimal(10, 2)
+  paymentStatus    String   @map("payment_status") // pending_link | awaiting_payment | completed
+  paymentLinkSent  String?  @map("payment_link_sent")
+  assignedSeats    String[] @map("assigned_seats")
+  linkWorkflow     String   @default("1_ticket") @map("link_workflow") // 1_ticket | 2_ticket
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  match            Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
+  @@index([paymentStatus])
+  @@index([customerEmail])
+  @@map("orders")
 }
 
 model AdminUser {
-  id             String    @id @default(cuid())
-  email          String    @unique
-  passwordHash   String
-  name           String
-  role           String   @default("SUPPORT_AGENT")
-  isActive       Boolean   @default(true)
-  totpSecret     String?
-  totpEnabled    Boolean   @default(false)
-  failedLogins   Int       @default(0)
-  lockedUntil    DateTime?
-  lastLoginAt    DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-
-  activityLogs  AdminActivityLog[]
-  assignedChats Conversation[]     @relation("AssignedAgent")
-
-  @@index([email])
-}
-
-model AdminActivityLog {
-  id        String   @id @default(cuid())
-  adminId   String
-  action    String
-  entity    String?
-  entityId  String?
-  details   String?
-  ipAddress String?
-  createdAt DateTime @default(now())
-
-  admin AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
-
-  @@index([adminId])
-  @@index([createdAt])
-}
-
-model Category {
-  id          String   @id @default(cuid())
-  name        String
-  slug        String   @unique
-  description String?
-  imageUrl    String?
-  parentId    String?
-  sortOrder   Int      @default(0)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
-  children Category[] @relation("CategoryTree")
-  products Product[]
-
-  @@index([slug])
-  @@index([parentId])
-}
-
-model Brand {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  slug      String   @unique
-  logoUrl   String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  products Product[]
-
-  @@index([slug])
-}
-
-model Product {
-  id               String           @id @default(cuid())
-  sku              String           @unique
-  name             String
-  slug             String           @unique
-  brandId          String
-  categoryId       String
-  shortDescription String
-  fullDescription  String
-  specifications   String           @default("{}")
-  mainImage        String
-  originalPrice    Float
-  sellingPrice     Float
-  stockQuantity    Int              @default(0)
-  condition        String           @default("NEW")
-  deliveryEstimate String           @default("3-5 business days")
-  badges           String           @default("[]")
-  isFeatured       Boolean          @default(false)
-  isTrending       Boolean          @default(false)
-  isBestSeller     Boolean          @default(false)
-  isNewArrival     Boolean          @default(false)
-  isActive         Boolean          @default(true)
-  relatedIds       String           @default("[]")
-  viewCount        Int              @default(0)
-  salesCount       Int              @default(0)
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-
-  brand          Brand            @relation(fields: [brandId], references: [id])
-  category       Category         @relation(fields: [categoryId], references: [id])
-  images         ProductImage[]
-  variants       ProductVariant[]
-  cartItems      CartItem[]
-  wishlistItems  WishlistItem[]
-  orderItems     OrderItem[]
-  recentlyViewed RecentlyViewed[]
-
-  @@index([slug])
-  @@index([sku])
-  @@index([categoryId])
-  @@index([brandId])
-  @@index([isActive])
-  @@index([sellingPrice])
-  @@index([createdAt])
-}
-
-model ProductImage {
-  id        String   @id @default(cuid())
-  productId String
-  url       String
-  alt       String?
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
-
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  @@index([productId])
-}
-
-model ProductVariant {
-  id            String   @id @default(cuid())
-  productId     String
-  name          String
-  sku           String   @unique
-  color         String?
-  storage       String?
-  priceModifier Float    @default(0)
-  stockQuantity Int      @default(0)
-  imageUrl      String?
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  product    Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
-  cartItems  CartItem[]
-  orderItems OrderItem[]
-
-  @@index([productId])
-}
-
-model Cart {
-  id        String   @id @default(cuid())
-  userId    String?  @unique
-  sessionId String?  @unique
-  couponCode String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user  User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items CartItem[]
-
-  @@index([sessionId])
-}
-
-model CartItem {
-  id        String   @id @default(cuid())
-  cartId    String
-  productId String
-  variantId String?
-  quantity  Int      @default(1)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  cart    Cart            @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  product Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
-  variant ProductVariant? @relation(fields: [variantId], references: [id])
-
-  @@unique([cartId, productId, variantId])
-  @@index([cartId])
-}
-
-model WishlistItem {
-  id        String   @id @default(cuid())
-  userId    String
-  productId String
-  createdAt DateTime @default(now())
-
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, productId])
-  @@index([userId])
-}
-
-model RecentlyViewed {
-  id        String   @id @default(cuid())
-  userId    String
-  productId String
-  viewedAt  DateTime @default(now())
-
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, productId])
-  @@index([userId])
-}
-
-model Coupon {
-  id            String    @id @default(cuid())
-  code          String    @unique
-  description   String?
-  discountType  String    @default("percent")
-  discountValue Float
-  minOrderAmount Float    @default(0)
-  maxUses       Int?
-  usedCount     Int       @default(0)
-  isActive      Boolean   @default(true)
-  expiresAt     DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  @@index([code])
-}
-
-model Order {
-  id                String        @id @default(cuid())
-  orderNumber       String        @unique
-  userId            String?
-  guestEmail        String?
-  status            String        @default("ORDER_CREATED")
-  paymentStatus     String        @default("PENDING")
-  paymentMethodId   String?
-  paymentMethodName String?
-  subtotal          Float
-  discountAmount    Float         @default(0)
-  shippingAmount    Float         @default(0)
-  taxAmount         Float         @default(0)
-  total             Float
-  couponCode        String?
-  customerName      String
-  customerEmail     String
-  customerPhone     String?
-  shippingLine1     String
-  shippingLine2     String?
-  shippingCity      String
-  shippingState     String
-  shippingZip       String
-  shippingCountry   String        @default("United States")
-  trackingNumber    String?
-  shippingCarrier   String?
-  customerNotes     String?
-  adminNotes        String?
-  estimatedDelivery String?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-
-  user          User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
-  paymentMethod PaymentMethod? @relation(fields: [paymentMethodId], references: [id], onDelete: SetNull)
-  items         OrderItem[]
-  conversations Conversation[]
-
-  @@index([orderNumber])
-  @@index([userId])
-  @@index([status])
-  @@index([paymentStatus])
-  @@index([customerEmail])
-  @@index([createdAt])
-}
-
-model OrderItem {
-  id           String  @id @default(cuid())
-  orderId      String
-  productId    String?
-  variantId    String?
-  productName  String
-  productSku   String
-  variantName  String?
-  imageUrl     String?
-  unitPrice    Float
-  quantity     Int
-  lineTotal    Float
-
-  order   Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
-  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
-
-  @@index([orderId])
-}
-
-model PaymentMethod {
-  id           String   @id @default(cuid())
-  slot         Int      @unique
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  passwordHash String   @map("password_hash")
   name         String
-  iconUrl      String?
-  paymentUrl   String
-  buttonText   String   @default("Pay Now")
-  instructions String?
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  orders Order[]
-}
-
-model Conversation {
-  id            String             @id @default(cuid())
-  userId        String?
-  guestName     String?
-  guestEmail    String?
-  orderId       String?
-  subject       String?
-  status        String             @default("OPEN")
-  assignedToId  String?
-  lastMessageAt DateTime           @default(now())
-  unreadAdmin   Int                @default(0)
-  unreadCustomer Int               @default(0)
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
-
-  user       User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
-  order      Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  assignedTo AdminUser?    @relation("AssignedAgent", fields: [assignedToId], references: [id], onDelete: SetNull)
-  messages   Message[]
-
-  @@index([userId])
-  @@index([status])
-  @@index([lastMessageAt])
-}
-
-model Message {
-  id             String   @id @default(cuid())
-  conversationId String
-  senderType     String
-  senderName     String
-  body           String
-  isRead         Boolean  @default(false)
-  createdAt      DateTime @default(now())
-
-  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-
-  @@index([conversationId])
-  @@index([createdAt])
-}
-
-model SiteSetting {
-  id        String   @id @default(cuid())
-  key       String   @unique
-  value     String
-  updatedAt DateTime @updatedAt
-
-  @@index([key])
-}
-
-model LoginAttempt {
-  id        String   @id @default(cuid())
-  email     String
-  ipAddress String?
-  success   Boolean
-  context   String   @default("customer")
-  createdAt DateTime @default(now())
-
-  @@index([email, context])
-  @@index([createdAt])
+  @@map("admin_users")
 }

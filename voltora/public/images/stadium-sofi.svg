@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 420" role="img" aria-label="Stadium graphic">
+  <rect width="800" height="420" fill="#020617"/>
+  <ellipse cx="400" cy="220" rx="280" ry="140" fill="#064e3b" stroke="#34d399" stroke-width="4"/>
+  <rect x="300" y="150" width="200" height="140" rx="16" fill="#10b981" opacity="0.9"/>
+  <text x="400" y="40" text-anchor="middle" fill="#34d399" font-family="Arial" font-size="28" font-weight="700">SOFI NIGHT KICKOFF</text>
+</svg>
