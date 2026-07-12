@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 420" role="img" aria-label="Stadium graphic">
+  <rect width="800" height="420" fill="#0f172a"/>
+  <ellipse cx="400" cy="220" rx="280" ry="140" fill="#166534" stroke="#a3e635" stroke-width="4"/>
+  <rect x="300" y="150" width="200" height="140" rx="16" fill="#4ade80" opacity="0.85"/>
+  <text x="400" y="40" text-anchor="middle" fill="#a3e635" font-family="Arial" font-size="28" font-weight="700">AT&amp;T MATCH NIGHT</text>
+</svg>

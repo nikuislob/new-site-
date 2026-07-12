@@ -1,36 +1,23 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { AppProviders } from "@/components/providers/AppProviders";
-import { absoluteUrl } from "@/lib/utils";
+import { SiteHeader } from "@/components/layout/SiteHeader";
+import { SiteFooter } from "@/components/layout/SiteFooter";
+import { ChatWidget } from "@/components/chat/ChatWidget";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
-  title: {
-    default: "Voltora — Premium US Electronics",
-    template: "%s | Voltora",
-  },
+  title: "PitchPass USA | International Football Tickets",
   description:
-    "Shop trending smartphones, laptops, audio, gaming, and smart home gear. Premium electronics delivered across the United States.",
-  keywords: ["electronics", "smartphones", "laptops", "US store", "Voltora", "premium tech"],
-  openGraph: {
-    type: "website",
-    siteName: "Voltora",
-    title: "Voltora — Premium US Electronics",
-    description: "Premium electronics. Delivered.",
-    url: absoluteUrl("/"),
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Voltora — Premium US Electronics",
-    description: "Premium electronics. Delivered.",
-  },
+    "Secure upcoming international football match tickets for USA venues. Standard and Premium views with Apple Pay / Cash App payment links.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="antialiased">
-        <AppProviders>{children}</AppProviders>
+      <body>
+        <SiteHeader />
+        <main className="min-h-[75vh]">{children}</main>
+        <SiteFooter />
+        <ChatWidget />
       </body>
     </html>
   );
