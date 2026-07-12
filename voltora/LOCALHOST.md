@@ -36,7 +36,12 @@ Also available:
 - `tickets@arenanights.example` / `Admin123!`
 - `support@arenanights.example` / `Admin123!`
 
+## Demo customer login
+- Email: `demo@customer.example`
+- Password: `Customer123!`
+
 ## Notes
 - Payment links are demo URLs (`https://example.com/pay/...`). Change them in Admin → Payment Links.
 - This project is independent branding and is not affiliated with FIFA.
 - To reset the database: `npm run db:reset`
+- Forgot-password demo links are shown on the page when running on localhost.

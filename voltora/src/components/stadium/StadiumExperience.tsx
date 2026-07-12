@@ -22,6 +22,7 @@ export function StadiumExperience() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const maxSeats = 2;
 
   useEffect(() => {
@@ -48,16 +49,23 @@ export function StadiumExperience() {
   );
 
   const toggleSeat = (seat: SeatView) => {
-    setSelectedIds((prev) => {
-      if (prev.includes(seat.id)) return prev.filter((id) => id !== seat.id);
-      if (prev.length >= maxSeats) return prev;
-      const existing = (match?.seats || []).filter((s) => prev.includes(s.id));
-      if (existing.length && existing[0].categoryId !== seat.categoryId) {
-        // Replace with same-category selection starting fresh with this seat
-        return [seat.id];
-      }
-      return [...prev, seat.id];
-    });
+    const prev = selectedIds;
+    if (prev.includes(seat.id)) {
+      setSelectedIds(prev.filter((id) => id !== seat.id));
+      setNotice(null);
+      return;
+    }
+    if (prev.length >= maxSeats) return;
+    const existing = (match?.seats || []).filter((s) => prev.includes(s.id));
+    if (existing.length && existing[0].categoryId !== seat.categoryId) {
+      setSelectedIds([seat.id]);
+      setNotice(
+        `Seats must be from the same category. Selection switched to ${seat.categoryName}.`
+      );
+      return;
+    }
+    setSelectedIds([...prev, seat.id]);
+    setNotice(null);
   };
 
   const continueCheckout = () => {
@@ -122,6 +130,11 @@ export function StadiumExperience() {
             Limited available seats are highlighted. Select up to {maxSeats} seats from the same
             category. From {formatCurrency(match.categories[0]?.priceCents || 8900)}.
           </p>
+          {notice ? (
+            <p className="mt-3 rounded-xl border border-[var(--accent)]/40 bg-[var(--accent-soft)] px-4 py-3 text-sm text-[var(--accent)]">
+              {notice}
+            </p>
+          ) : null}
         </div>
 
         <div id="map" className="mt-8">
