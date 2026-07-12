@@ -249,9 +249,12 @@ async function main() {
         return {
           matchId: match.id,
           section: seat.section,
+          block: seat.block,
           row: seat.row,
           number: seat.number,
           category: seat.category,
+          price: seat.category === "CLOSER" ? 218 : 89,
+          currency: "USD",
           status: reserved.has(key) ? "SOLD" : "AVAILABLE",
         };
       }),

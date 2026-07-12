@@ -8,11 +8,17 @@ import { Input } from "@/components/ui/Input";
 import { Notify } from "@/components/ui/PageHeader";
 import { Spinner } from "@/components/ui/Spinner";
 import { formatCurrency } from "@/lib/utils";
-import { useBookingStore } from "@/store/booking";
+
+type CheckoutDraft = {
+  matchId: string;
+  category: "UPPER" | "CLOSER";
+  seatIds: string[];
+  holdToken: string;
+  seats: { id: string; label: string; price: number; section: string; row: string; number: number }[];
+  expiresAt: string;
+};
 
 type Settings = {
-  upperSeatPrice: number;
-  closerSeatPrice: number;
   maxTicketsPerOrder: number;
   serviceFeeEnabled: boolean;
   serviceFeePercent: number;
@@ -24,7 +30,7 @@ type Settings = {
 
 export function CheckoutClient() {
   const router = useRouter();
-  const { matchId, seats, category, reset } = useBookingStore();
+  const [draft, setDraft] = useState<CheckoutDraft | null>(null);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -37,6 +43,14 @@ export function CheckoutClient() {
   });
 
   useEffect(() => {
+    const raw = sessionStorage.getItem("pitchora_checkout");
+    if (raw) {
+      try {
+        setDraft(JSON.parse(raw));
+      } catch {
+        setDraft(null);
+      }
+    }
     fetch("/api/settings/public")
       .then((r) => r.json())
       .then((d) => setSettings(d.settings))
@@ -44,9 +58,8 @@ export function CheckoutClient() {
   }, []);
 
   const totals = useMemo(() => {
-    if (!settings || !category) return null;
-    const unit = category === "UPPER" ? settings.upperSeatPrice : settings.closerSeatPrice;
-    const subtotal = unit * seats.length;
+    if (!draft || !settings) return null;
+    const subtotal = draft.seats.reduce((s, x) => s + x.price, 0);
     const serviceFee = settings.serviceFeeEnabled
       ? Math.round(subtotal * (settings.serviceFeePercent / 100) * 100) / 100
       : 0;
@@ -54,15 +67,15 @@ export function CheckoutClient() {
       ? Math.round(subtotal * (settings.taxPercent / 100) * 100) / 100
       : 0;
     const originalTotal = Math.round((subtotal + serviceFee + taxAmount) * 100) / 100;
-    return { unit, subtotal, serviceFee, taxAmount, originalTotal };
-  }, [settings, category, seats.length]);
+    return { subtotal, serviceFee, taxAmount, originalTotal };
+  }, [draft, settings]);
 
   if (loading) return <Spinner label="Preparing checkout..." />;
 
-  if (!matchId || !category || seats.length === 0) {
+  if (!draft || !draft.holdToken || !draft.seatIds?.length) {
     return (
       <div className="space-y-4">
-        <Notify tone="warn">Your seat selection is empty. Please choose seats first.</Notify>
+        <Notify tone="warn">No active seat hold. Please select seats on the stadium map first.</Notify>
         <Link href="/matches">
           <Button variant="gold">Browse Matches</Button>
         </Link>
@@ -70,31 +83,22 @@ export function CheckoutClient() {
     );
   }
 
-  if (seats.length > (settings?.maxTicketsPerOrder ?? 2)) {
+  if (draft.seatIds.length > (settings?.maxTicketsPerOrder ?? 2)) {
     return (
       <div className="space-y-4">
-        <Notify tone="error">
-          For bookings of 3 or more tickets, please contact our support team.
-        </Notify>
-        <div className="flex flex-wrap gap-3">
-          <Link href={`/bulk-request?matchId=${matchId}`}>
-            <Button variant="gold">Contact Admin</Button>
-          </Link>
-          <Link href="/contact">
-            <Button variant="secondary">Live Chat</Button>
-          </Link>
-          {settings?.whatsappUrl ? (
-            <a href={settings.whatsappUrl} target="_blank" rel="noreferrer">
-              <Button variant="ghost">WhatsApp</Button>
-            </a>
-          ) : null}
-        </div>
+        <Notify tone="error">For bookings of 3 or more tickets, please contact our support team.</Notify>
+        <Link href={`/bulk-request?matchId=${draft.matchId}`}>
+          <Button variant="gold">Contact Admin</Button>
+        </Link>
       </div>
     );
   }
 
+  const holdExpired = draft.expiresAt && new Date(draft.expiresAt).getTime() < Date.now();
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    if (!draft) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -102,16 +106,17 @@ export function CheckoutClient() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          matchId,
-          ticketCategory: category,
-          seatIds: seats.map((s) => s.id),
+          matchId: draft.matchId,
+          ticketCategory: draft.category,
+          seatIds: draft.seatIds,
+          holdToken: draft.holdToken,
           paymentMethod,
           ...form,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Checkout failed");
-      reset();
+      sessionStorage.removeItem("pitchora_checkout");
       router.push(`/confirmation/${data.order.id}?pay=1`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Checkout failed");
@@ -124,6 +129,13 @@ export function CheckoutClient() {
     <form onSubmit={onSubmit} className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
       <div className="space-y-5">
         <h1 className="font-display text-5xl">Checkout</h1>
+        {holdExpired ? (
+          <Notify tone="error">Your seat hold expired. Go back and select seats again.</Notify>
+        ) : (
+          <Notify tone="info">
+            Seats temporarily held until {new Date(draft.expiresAt).toLocaleTimeString()}. Complete payment to confirm.
+          </Notify>
+        )}
         {error ? <Notify tone="error">{error}</Notify> : null}
         <Input
           id="name"
@@ -151,32 +163,39 @@ export function CheckoutClient() {
         <div>
           <p className="mb-3 text-sm text-[var(--ink-muted)]">Payment method</p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <PayOption
-              active={paymentMethod === "APPLE_PAY"}
+            <button
+              type="button"
               onClick={() => setPaymentMethod("APPLE_PAY")}
-              title="Apple Pay"
-              subtitle="Secure link checkout"
-            />
-            <PayOption
-              active={paymentMethod === "CASH_APP"}
+              className={`rounded-2xl border px-4 py-4 text-left ${
+                paymentMethod === "APPLE_PAY" ? "border-[var(--gold)] bg-[var(--gold-soft)]" : "border-[var(--line)]"
+              }`}
+            >
+              <p className="font-semibold">Apple Pay</p>
+              <p className="text-xs text-[var(--ink-muted)]">Secure link checkout</p>
+            </button>
+            <button
+              type="button"
               onClick={() => setPaymentMethod("CASH_APP")}
-              title="Cash App"
-              subtitle="Secure link checkout"
-            />
+              className={`rounded-2xl border px-4 py-4 text-left ${
+                paymentMethod === "CASH_APP" ? "border-[var(--gold)] bg-[var(--gold-soft)]" : "border-[var(--line)]"
+              }`}
+            >
+              <p className="font-semibold">Cash App</p>
+              <p className="text-xs text-[var(--ink-muted)]">Secure link checkout</p>
+            </button>
           </div>
-          <p className="mt-3 text-xs text-[var(--ink-muted)]">
-            Only Apple Pay and Cash App are supported. No other payment options.
-          </p>
         </div>
       </div>
 
       <aside className="glass h-fit rounded-[var(--radius)] p-6">
         <h2 className="font-display text-3xl">Summary</h2>
         <ul className="mt-4 space-y-2 text-sm text-[var(--ink-muted)]">
-          <li>Category: {category === "UPPER" ? "Upper Side" : "Closer View"}</li>
-          <li>Seats: {seats.map((s) => `${s.section}-${s.row}-${s.number}`).join(", ")}</li>
-          <li>Quantity: {seats.length}</li>
-          <li>Unit price: {formatCurrency(totals?.unit || 0)}</li>
+          <li>Category: {draft.category === "UPPER" ? "Upper Side" : "Closer View"}</li>
+          {draft.seats.map((s) => (
+            <li key={s.id}>
+              {s.label} — {formatCurrency(s.price)}
+            </li>
+          ))}
           <li>Subtotal: {formatCurrency(totals?.subtotal || 0)}</li>
           {totals && totals.serviceFee > 0 ? <li>Service fee: {formatCurrency(totals.serviceFee)}</li> : null}
           {totals && totals.taxAmount > 0 ? <li>Tax: {formatCurrency(totals.taxAmount)}</li> : null}
@@ -186,38 +205,16 @@ export function CheckoutClient() {
         </p>
         {settings?.uniquePaymentEnabled ? (
           <p className="mt-2 text-xs text-[var(--ink-muted)]">
-            A unique verification amount under +$3 may be added on the next step to help identify your payment.
+            A unique verification amount under +$3 may be added on the next step.
           </p>
         ) : null}
-        <Button type="submit" variant="gold" className="mt-6 w-full" disabled={submitting}>
+        <Button type="submit" variant="gold" className="mt-6 w-full" disabled={submitting || !!holdExpired}>
           {submitting ? "Processing..." : "Place Order & Pay"}
         </Button>
+        <Link href={`/book/${draft.matchId}?category=${draft.category}`} className="mt-3 block text-center text-sm text-[var(--ink-muted)]">
+          ← Back to stadium seats
+        </Link>
       </aside>
     </form>
-  );
-}
-
-function PayOption({
-  active,
-  onClick,
-  title,
-  subtitle,
-}: {
-  active: boolean;
-  onClick: () => void;
-  title: string;
-  subtitle: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-2xl border px-4 py-4 text-left transition ${
-        active ? "border-[var(--gold)] bg-[var(--gold-soft)]" : "border-[var(--line)] bg-black/30"
-      }`}
-    >
-      <p className="font-semibold">{title}</p>
-      <p className="text-xs text-[var(--ink-muted)]">{subtitle}</p>
-    </button>
   );
 }

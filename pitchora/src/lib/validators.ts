@@ -27,6 +27,7 @@ export const checkoutSchema = z.object({
   matchId: z.string().min(1),
   ticketCategory: z.enum(["UPPER", "CLOSER"]),
   seatIds: z.array(z.string()).min(1).max(2),
+  holdToken: z.string().min(8).optional(),
   customerName: z.string().min(2),
   customerEmail: z.string().email(),
   customerPhone: z.string().min(7),

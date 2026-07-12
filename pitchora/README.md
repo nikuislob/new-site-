@@ -1,45 +1,38 @@
-# Pitchora (footbaaal) — Easy Localhost Guide
+# Pitchora — Football Stadium Ticket Booking
 
-## 1) Download
+Premium football match ticket site with a real stadium map and **max 9 random available seats** from the database.
 
-Download **`footbaaal.zip`**, then unzip it.
+## Windows (localhost)
 
-Direct download (from this repo branch):
-https://github.com/nikuislob/new-site-/raw/cursor/pitchora-ticket-platform-ae89/footbaaal.zip
+1. Install Node.js LTS: https://nodejs.org
+2. Open the `pitchora` folder
+3. Double-click **`START-WINDOWS.bat`**
+4. Browser opens **http://localhost:3000**
 
-## 2) Install Node.js (one time)
-
-Install **Node.js LTS** from https://nodejs.org  
-Restart your terminal after installing.
-
-## 3) Setup + start
-
-Open a terminal in the unzipped folder and run:
+## Mac / Linux
 
 ```bash
 cd pitchora
-npm run setup
-npm run dev
+chmod +x START.sh
+./START.sh
 ```
 
-## 4) Open in your browser
+## Admin
 
-| Page | URL |
-|---|---|
-| Website | http://localhost:3000 |
-| Admin login | http://localhost:3000/admin/login |
-
-**Admin credentials**
+- http://localhost:3000/admin/login
 - Email: `admin@pitchora.com`
 - Password: `Admin123!`
 
-## Stop the server
+## What you get
 
-Press `Ctrl + C` in the terminal.
+- Football stadium SVG seating map (pitch + stands)
+- Backend picks up to **9 random AVAILABLE seats** per load
+- Temporary seat holds (15 min) before payment
+- Seats become **SOLD only after payment confirmation**
+- Apple Pay / Cash App payment links (admin-editable)
+- Admin seat inventory (AVAILABLE / HELD / SOLD)
 
----
-
-### Manual commands (same result)
+## Manual setup
 
 ```bash
 cd pitchora
@@ -48,9 +41,3 @@ npx prisma db push
 npm run db:seed
 npm run dev
 ```
-
-### If something fails
-
-- `npm` not found → install Node.js LTS and reopen the terminal
-- Port 3000 already used → `npm run dev -- -p 3001` then open http://localhost:3001
-- Database issues → `npm run db:reset`

@@ -1,45 +1,48 @@
 ========================================
-  RAJUHERO ZIP — HOW TO OPEN
+  RAJUHERO / PITCHORA
+  Football Stadium Ticket Website
 ========================================
 
-1) Unzip rajuhero.zip
-2) Open the footbaaal folder
+REQUIREMENT: Node.js LTS from https://nodejs.org
 
 
-EASIEST WAY (no localhost needed)
----------------------------------
-Double-click:  OPEN-WEBSITE.bat   (Windows)
-or double-click:  index.html
-
-
-LOCALHOST WAY (Windows)
------------------------
-Double-click:  START-WINDOWS.bat
-
-It will open:
-  http://localhost:3000
+WINDOWS LOCALHOST
+-----------------
+1. Unzip rajuhero.zip
+2. Open folder:  pitchora
+3. Double-click: START-WINDOWS.bat
+4. Wait for install + database setup
+5. Browser opens: http://localhost:3000
 
 Keep the black window open.
-To stop: press Ctrl+C or close the window.
 
 
-LOCALHOST WAY (Mac)
--------------------
-Double-click:  START-MAC.command
-Then open: http://localhost:3000
+MAC / LINUX
+-----------
+cd pitchora
+chmod +x START.sh
+./START.sh
 
 
 ADMIN
 -----
-http://localhost:3000/admin/login.html
-or open: admin/login.html
-
+http://localhost:3000/admin/login
 Email:    admin@pitchora.com
 Password: Admin123!
 
 
-IF LOCALHOST STILL FAILS
-------------------------
-Use OPEN-WEBSITE.bat or index.html instead.
-That opens the full website without localhost.
+FEATURES
+--------
+- Football stadium map (not a studio/cinema grid)
+- Only 9 random available seats shown per load
+- Seat hold during checkout
+- Sold only after payment confirm
+- Admin inventory + orders
+
+
+TROUBLESHOOTING
+---------------
+- "node not found" → install Node.js LTS, reopen terminal
+- Port busy → close other apps using 3000, or run:
+    npm run dev -- -p 3001
 ========================================

@@ -61,22 +61,29 @@ model Match {
 }
 
 model Seat {
-  id        String   @id @default(cuid())
-  matchId   String
-  section   String
-  row       String
-  number    Int
-  category  String
-  status    String   @default("AVAILABLE")
-  orderId   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String    @id @default(cuid())
+  matchId       String
+  section       String
+  block         String    @default("")
+  row           String
+  number        Int
+  category      String
+  price         Float     @default(0)
+  currency      String    @default("USD")
+  status        String    @default("AVAILABLE")
+  holdToken     String?
+  holdExpiresAt DateTime?
+  orderId       String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   match Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
   order Order? @relation(fields: [orderId], references: [id])
 
   @@unique([matchId, section, row, number])
   @@index([matchId, category, status])
+  @@index([holdToken])
+  @@index([holdExpiresAt])
   @@index([orderId])
 }
 

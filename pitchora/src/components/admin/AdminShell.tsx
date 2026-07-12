@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 const nav = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/matches", label: "Matches", icon: CalendarDays },
+  { href: "/admin/seats", label: "Seats", icon: Ticket },
   { href: "/admin/ticket-settings", label: "Ticket Settings", icon: Ticket },
   { href: "/admin/payments", label: "Payment Settings", icon: CreditCard },
   { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
