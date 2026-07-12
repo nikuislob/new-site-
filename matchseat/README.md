@@ -1,36 +1,77 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PitchPass — US Match Ticket Marketplace
 
-## Getting Started
+Independent ticket storefront for upcoming international soccer matches in the United States, with Cash App / Apple Pay amount-based payment links, customer accounts, Chat Now support, and a full operator admin panel.
 
-First, run the development server:
+**Not affiliated with FIFA.** Demo / portfolio project — replace payment URLs before any real commerce use.
+
+## Features
+
+- Upcoming match schedule with venues, stages, and seating stock
+- **Basic seats $70** · **Premium seats $140** · **Max 2 tickets per customer**
+- Cart auto-calculates totals: $70 / $140 / $210 / $280
+- Payment URL templates with `{amount}` so you need fewer Cash App / Apple Pay links
+- Optional per-amount URL overrides in admin
+- Orders stay **Payment Pending** until an admin confirms payment manually
+- Floating **Chat Now** widget + admin support inbox
+- Role-based admin: Super Admin, Match Manager, Order Manager, Support Agent
+
+## Quick start
 
 ```bash
+cd matchseat
+cp .env.example .env
+npm install
+npx prisma db push
+npm run db:seed
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- Storefront: http://localhost:3000  
+- Admin: http://localhost:3000/admin/login  
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Demo accounts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Role | Email | Password |
+|------|-------|----------|
+| Super Admin | `admin@pitchpass.example` | `Admin123!` |
+| Match Manager | `matches@pitchpass.example` | `Admin123!` |
+| Order Manager | `orders@pitchpass.example` | `Admin123!` |
+| Support Agent | `support@pitchpass.example` | `Admin123!` |
+| Customer | `demo@customer.example` | `Customer123!` |
 
-## Learn More
+## Payment links (fewer destinations)
 
-To learn more about Next.js, take a look at the following resources:
+Configure under **Admin → Payments**:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Set Cash App template, e.g. `https://cash.app/$YourCashtag/{amount}`
+2. Set Apple Pay template, e.g. `https://your-pay-page.example/{amount}`
+3. Checkout replaces `{amount}` with `70`, `140`, `210`, or `280` from the cart total
+4. Optionally add fixed overrides for a specific amount if a template is not enough
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Opening a payment link **never** marks an order paid. Confirm in **Admin → Orders**.
 
-## Deploy on Vercel
+## Scripts
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm run dev        # Development server
+npm run build      # Production build
+npm run start      # Production server
+npm run lint       # ESLint
+npm run test       # Vitest
+npm run db:push    # Apply schema
+npm run db:seed    # Seed matches, admins, payment methods
+npm run db:reset   # Reset DB + seed
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Zip download
+
+From the repo root after setup:
+
+```bash
+./scripts/make-pitchpass-zip.sh
+# or: zip -r pitchpass-tickets.zip matchseat -x 'matchseat/node_modules/*' 'matchseat/.next/*' 'matchseat/prisma/*.db*'
+```
+
+## Tech
+
+Next.js 15 · TypeScript · Tailwind CSS · Prisma · SQLite · JWT cookies · Vitest

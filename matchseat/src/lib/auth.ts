@@ -5,7 +5,9 @@ import { NextRequest } from "next/server";
 import { prisma } from "./db";
 import type { AdminUser, User } from "@prisma/client";
 
-export type AdminRole = "SUPER_ADMIN" | "MATCH_MANAGER" | "ORDER_MANAGER" | "SUPPORT_AGENT";
+import type { AdminRole } from "./permissions";
+export type { AdminRole };
+export { adminCan } from "./permissions";
 
 const CUSTOMER_COOKIE = "pitchpass_session";
 const ADMIN_COOKIE = "pitchpass_admin_session";
@@ -166,21 +168,6 @@ export function publicAdmin(admin: AdminUser) {
     role: admin.role,
     lastLoginAt: admin.lastLoginAt,
   };
-}
-
-export const ROLE_PERMISSIONS: Record<AdminRole, string[]> = {
-  SUPER_ADMIN: ["*"],
-  MATCH_MANAGER: ["matches", "dashboard"],
-  ORDER_MANAGER: ["orders", "payments", "dashboard"],
-  SUPPORT_AGENT: ["support", "orders:read", "dashboard"],
-};
-
-export function adminCan(role: AdminRole | string, permission: string): boolean {
-  const perms = ROLE_PERMISSIONS[role as AdminRole] || [];
-  if (perms.includes("*")) return true;
-  if (perms.includes(permission)) return true;
-  const base = permission.split(":")[0];
-  return perms.includes(base);
 }
 
 export async function logAdminActivity(

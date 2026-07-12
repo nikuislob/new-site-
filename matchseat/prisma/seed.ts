@@ -293,6 +293,9 @@ async function main() {
 
 main()
   .then(async () => {
+    console.log("PitchPass seed complete.");
+    console.log("Admin: admin@pitchpass.example / Admin123!");
+    console.log("Customer: demo@customer.example / Customer123!");
     await prisma.$disconnect();
   })
   .catch(async (error) => {
