@@ -1,23 +1,16 @@
-# Footbaaal / Pitchora — Simple Ticket Website
+# RajuHero Ticket Website
 
 ## Download
-
 **[rajuhero.zip](./rajuhero.zip)**  
-Direct: https://github.com/nikuislob/new-site-/raw/cursor/pitchora-ticket-platform-ae89/rajuhero.zip
+https://github.com/nikuislob/new-site-/raw/cursor/pitchora-ticket-platform-ae89/rajuhero.zip
 
-## How to open (no Node / npm needed)
-
+## Open (Windows)
 1. Unzip `rajuhero.zip`
 2. Open the `footbaaal` folder
-3. Double-click **`index.html`**
+3. Double-click **`START-WINDOWS.bat`** for http://localhost:3000
+4. Or double-click **`OPEN-WEBSITE.bat`** / **`index.html`** if localhost fails
 
-### Optional localhost
-- Windows: `START-WINDOWS.bat` → http://localhost:3000
-- Mac: `START-MAC.command` → http://localhost:3000
-
-### Admin
-- `admin/login.html`
+## Admin
+- http://localhost:3000/admin/login.html
 - Email: `admin@pitchora.com`
 - Password: `Admin123!`
-
-Read `START_HERE.txt` inside the zip.

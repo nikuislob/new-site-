@@ -1,56 +1,45 @@
 ========================================
-  FOOTBAAAL — SIMPLE VERSION
-  Easy download. Easy localhost.
+  RAJUHERO ZIP — HOW TO OPEN
 ========================================
 
-THIS VERSION NEEDS NO npm / Node / database.
-Just HTML + CSS + JavaScript.
+1) Unzip rajuhero.zip
+2) Open the footbaaal folder
 
 
-OPTION A — EASIEST (recommended)
---------------------------------
-1. Unzip rajuhero.zip
-2. Open the footbaaal folder
-3. Double-click:  index.html
-
-Website opens in your browser.
+EASIEST WAY (no localhost needed)
+---------------------------------
+Double-click:  OPEN-WEBSITE.bat   (Windows)
+or double-click:  index.html
 
 
-OPTION B — LOCALHOST (optional)
--------------------------------
-Windows:
-  Double-click START-WINDOWS.bat
+LOCALHOST WAY (Windows)
+-----------------------
+Double-click:  START-WINDOWS.bat
 
-Mac / Linux:
-  Double-click START-MAC.command
-  (or run:  python3 -m http.server 3000)
-
-Then open:
+It will open:
   http://localhost:3000
 
+Keep the black window open.
+To stop: press Ctrl+C or close the window.
 
-ADMIN LOGIN
------------
-Open:  admin/login.html
-  or http://localhost:3000/admin/login.html
+
+LOCALHOST WAY (Mac)
+-------------------
+Double-click:  START-MAC.command
+Then open: http://localhost:3000
+
+
+ADMIN
+-----
+http://localhost:3000/admin/login.html
+or open: admin/login.html
 
 Email:    admin@pitchora.com
 Password: Admin123!
 
 
-WHAT WORKS
-----------
-- Home, matches, seat map, checkout
-- Max 2 tickets / order
-- Bulk request for 3+ tickets
-- Apple Pay + Cash App payment links
-- QR ticket confirmation
-- Admin dashboard (matches, orders, settings)
-
-All data saves in your browser (localStorage).
-
-
-IF SOMETHING LOOKS EMPTY
+IF LOCALHOST STILL FAILS
 ------------------------
-In Admin → click "Reset Demo Data"
+Use OPEN-WEBSITE.bat or index.html instead.
+That opens the full website without localhost.
 ========================================

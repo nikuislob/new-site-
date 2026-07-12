@@ -1,21 +1,12 @@
-# Footbaaal — Simple Football Ticket Website
+# RajuHero / Pitchora Simple Website
 
-## Fastest way (no install)
+## Windows localhost
+Double-click **`START-WINDOWS.bat`** → opens http://localhost:3000
 
-1. Unzip `rajuhero.zip`
-2. Open the `footbaaal` folder
-3. Double-click **`index.html`**
-
-## Localhost (optional)
-
-- Windows: double-click `START-WINDOWS.bat`
-- Mac: double-click `START-MAC.command`
-- Then open http://localhost:3000
+## If localhost fails
+Double-click **`OPEN-WEBSITE.bat`** or **`index.html`**
 
 ## Admin
-
-- Page: `admin/login.html`
+- `admin/login.html`
 - Email: `admin@pitchora.com`
 - Password: `Admin123!`
-
-No Node.js. No npm. No database. Data saves in your browser.
