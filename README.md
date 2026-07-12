@@ -1,11 +1,10 @@
-# Voltora E-Commerce Platform
+# PitchPass — FIFA-style US Match Ticket Site
 
-Complete production-ready US electronics marketplace.
-
-**Project directory:** [`voltora/`](./voltora/)
+New project lives in [`matchseat/`](./matchseat/).
 
 ```bash
-cd voltora
+cd matchseat
+cp .env.example .env
 npm install
 npx prisma db push
 npm run db:seed
@@ -15,4 +14,9 @@ npm run dev
 - Store: http://localhost:3000  
 - Admin: http://localhost:3000/admin/login  
 
-See [`voltora/README.md`](./voltora/README.md) for full documentation, demo credentials, and deployment notes.
+**Pricing:** Basic $70 · Premium $140 · max 2 tickets/customer  
+**Payments:** Cash App + Apple Pay links auto-matched to cart total ($70 / $140 / $210 / $280)
+
+See [`matchseat/README.md`](./matchseat/README.md) for credentials, zip download, and operator docs.
+
+Also includes the earlier [`voltora/`](./voltora/) electronics marketplace demo.
