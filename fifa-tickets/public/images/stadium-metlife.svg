@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 640" role="img" aria-label="MetLife Stadium aerial view">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0b3d2e"/>
+      <stop offset="55%" stop-color="#145c3f"/>
+      <stop offset="100%" stop-color="#0f2a22"/>
+    </linearGradient>
+    <linearGradient id="pitch" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1f8a4c"/>
+      <stop offset="50%" stop-color="#176b3b"/>
+      <stop offset="100%" stop-color="#1f8a4c"/>
+    </linearGradient>
+    <radialGradient id="lights" cx="50%" cy="20%" r="70%">
+      <stop offset="0%" stop-color="#ffe9a8" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#ffe9a8" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="640" fill="url(#sky)"/>
+  <ellipse cx="600" cy="340" rx="480" ry="250" fill="#1a2e28" opacity="0.9"/>
+  <ellipse cx="600" cy="340" rx="420" ry="210" fill="#243d35"/>
+  <rect x="300" y="220" width="600" height="240" rx="8" fill="url(#pitch)"/>
+  <rect x="300" y="220" width="600" height="240" rx="8" fill="none" stroke="#e8f5ee" stroke-width="3"/>
+  <line x1="600" y1="220" x2="600" y2="460" stroke="#e8f5ee" stroke-width="2"/>
+  <circle cx="600" cy="340" r="50" fill="none" stroke="#e8f5ee" stroke-width="2"/>
+  <rect x="300" y="280" width="60" height="120" fill="none" stroke="#e8f5ee" stroke-width="2"/>
+  <rect x="840" y="280" width="60" height="120" fill="none" stroke="#e8f5ee" stroke-width="2"/>
+  <ellipse cx="600" cy="340" rx="460" ry="235" fill="none" stroke="#c9a227" stroke-width="10" opacity="0.55"/>
+  <path d="M140 340 Q600 40 1060 340 Q600 640 140 340 Z" fill="none" stroke="#2f5548" stroke-width="28"/>
+  <circle cx="220" cy="160" r="18" fill="#fff6d6" opacity="0.85"/>
+  <circle cx="980" cy="160" r="18" fill="#fff6d6" opacity="0.85"/>
+  <circle cx="220" cy="520" r="18" fill="#fff6d6" opacity="0.85"/>
+  <circle cx="980" cy="520" r="18" fill="#fff6d6" opacity="0.85"/>
+  <rect width="1200" height="640" fill="url(#lights)"/>
+  <text x="600" y="600" text-anchor="middle" fill="#e8f5ee" font-family="Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="4">METLIFE STADIUM</text>
+</svg>

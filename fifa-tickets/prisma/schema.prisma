@@ -1,0 +1,168 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         String    @default("ADMIN")
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Match {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  homeTeam     String   @default("FIFA Select")
+  opponent     String
+  venue        String
+  stadiumName  String
+  stadiumImage String?
+  matchDate    DateTime
+  matchTime    String
+  description  String?
+  isPublished  Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  seats  Seat[]
+  orders Order[]
+
+  @@index([matchDate])
+  @@index([isPublished])
+}
+
+model TicketCategory {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  price       Float
+  color       String   @default("#1a7f4b")
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  seats  Seat[]
+  orders Order[]
+}
+
+model Seat {
+  id         String  @id @default(cuid())
+  matchId    String
+  categoryId String
+  section    String
+  row        String
+  number     Int
+  label      String
+  status     String  @default("AVAILABLE") // AVAILABLE | HELD | SOLD
+  x          Float?
+  y          Float?
+
+  match    Match          @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  category TicketCategory @relation(fields: [categoryId], references: [id])
+  orderItems OrderItem[]
+
+  @@unique([matchId, section, row, number])
+  @@index([matchId, status])
+  @@index([categoryId])
+}
+
+model PaymentLink {
+  id        String   @id @default(cuid())
+  key       String   @unique // BASIC_1 | BASIC_2 | PREMIUM_1 | PREMIUM_2
+  label     String
+  amount    Float
+  url       String
+  provider  String   @default("Apple Pay / Cash App")
+  isActive  Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  firstName String
+  lastName  String
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders Order[]
+
+  @@index([email])
+}
+
+model Order {
+  id              String   @id @default(cuid())
+  orderNumber     String   @unique
+  matchId         String
+  customerId      String
+  categoryId      String
+  quantity        Int
+  unitPrice       Float
+  totalAmount     Float
+  paymentLinkKey  String?
+  paymentUrl      String?
+  paymentStatus   String   @default("PENDING") // PENDING | PAID | FAILED | CANCELLED | BULK_INQUIRY
+  status          String   @default("AWAITING_PAYMENT")
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  match    Match          @relation(fields: [matchId], references: [id])
+  customer Customer       @relation(fields: [customerId], references: [id])
+  category TicketCategory @relation(fields: [categoryId], references: [id])
+  items    OrderItem[]
+
+  @@index([paymentStatus])
+  @@index([createdAt])
+  @@index([matchId])
+  @@index([customerId])
+}
+
+model OrderItem {
+  id      String @id @default(cuid())
+  orderId String
+  seatId  String
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  seat  Seat  @relation(fields: [seatId], references: [id])
+
+  @@unique([seatId])
+  @@index([orderId])
+}
+
+model ContactInquiry {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  matchId   String?
+  quantity  Int?
+  message   String
+  status    String   @default("NEW") // NEW | CONTACTED | CLOSED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model SiteSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
