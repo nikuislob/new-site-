@@ -1,9 +1,0 @@
-# Deny access to sensitive / source files on Apache (Hostinger shared)
-<FilesMatch "^(\.env|\.env\..*|.*\.db|.*\.db-journal|package-lock\.json)$">
-  Require all denied
-</FilesMatch>
-
-# Prefer HTTPS
-RewriteEngine On
-RewriteCond %{HTTPS} !=on
-RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]

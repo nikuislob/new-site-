@@ -8,8 +8,8 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "prisma generate && next build",
-    "start": "prisma db push && tsx scripts/ensure-seed.ts && next start -p ${PORT:-3000}",
-    "start:hostinger": "prisma db push && tsx scripts/ensure-seed.ts && next start -p ${PORT:-3000}",
+    "start": "node scripts/start-production.mjs",
+    "start:hostinger": "node scripts/start-production.mjs",
     "hostinger:build": "npm install --include=dev && prisma generate && next build",
     "lint": "eslint",
     "test": "vitest run",
