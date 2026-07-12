@@ -24,11 +24,18 @@ export async function releaseExpiredReservations() {
       status: { in: ["PENDING", "AWAITING_PAYMENT"] },
       reservationExpiresAt: { lt: now },
     },
-    include: { items: true },
+    include: { items: true, seats: true },
   });
 
   for (const order of expired) {
     await prisma.$transaction(async (tx) => {
+      if (order.seats.length > 0) {
+        await tx.seat.updateMany({
+          where: { orderId: order.id, status: "RESERVED" },
+          data: { status: "AVAILABLE", orderId: null, reservedUntil: null },
+        });
+      }
+
       for (const item of order.items) {
         if (!item.ticketCategoryId) continue;
         const category = await tx.ticketCategory.findUnique({
@@ -53,34 +60,22 @@ export async function releaseExpiredReservations() {
           newStatus: "CANCELLED",
           previousPaymentStatus: order.paymentStatus,
           newPaymentStatus: order.paymentStatus,
-          note: "Reservation expired — inventory released",
+          note: "Reservation expired — seats and inventory released",
         },
       });
     });
   }
 
-  return expired.length;
-}
-
-export async function reserveInventory(categoryId: string, quantity: number) {
-  return prisma.$transaction(async (tx) => {
-    const category = await tx.ticketCategory.findUnique({ where: { id: categoryId } });
-    if (!category || !category.isActive) {
-      throw new InventoryError("Ticket category unavailable");
-    }
-    const available = availableInventory(
-      category.totalInventory,
-      category.reservedCount,
-      category.soldCount
-    );
-    if (available < quantity) {
-      throw new InventoryError("Not enough tickets available");
-    }
-    return tx.ticketCategory.update({
-      where: { id: categoryId },
-      data: { reservedCount: category.reservedCount + quantity },
-    });
+  // Also clear orphaned seat reservations
+  await prisma.seat.updateMany({
+    where: {
+      status: "RESERVED",
+      reservedUntil: { lt: now },
+    },
+    data: { status: "AVAILABLE", orderId: null, reservedUntil: null },
   });
+
+  return expired.length;
 }
 
 export async function convertReservationToSold(categoryId: string, quantity: number) {

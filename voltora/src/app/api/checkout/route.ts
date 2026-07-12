@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { createPendingOrder } from "@/lib/orders";
 import { InventoryError } from "@/lib/inventory";
+import { getCurrentCustomer } from "@/lib/auth";
 import { checkoutSchema } from "@/lib/validators";
 import { errorJson, formatCurrency, safeJson } from "@/lib/utils";
 
@@ -12,7 +13,11 @@ export async function POST(req: NextRequest) {
       return errorJson(parsed.error.issues[0]?.message || "Invalid checkout data", 400);
     }
 
-    const result = await createPendingOrder(parsed.data);
+    const user = await getCurrentCustomer();
+    const result = await createPendingOrder({
+      ...parsed.data,
+      userId: user?.id || null,
+    });
     const { order, paymentUrl, buttonText, instructions, expectedAmountCents } = result;
 
     return safeJson(
@@ -43,6 +48,7 @@ export async function POST(req: NextRequest) {
             city: order.match.city,
           },
           items: order.items,
+          seats: order.seats,
         },
         paymentUrl,
         buttonText,

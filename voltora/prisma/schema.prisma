@@ -7,6 +7,24 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  passwordHash     String
+  fullName         String
+  phone            String?
+  isActive         Boolean   @default(true)
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  orders Order[]
+
+  @@index([email])
+  @@index([resetToken])
+}
+
 model AdminUser {
   id           String    @id @default(cuid())
   email        String    @unique
@@ -22,10 +40,10 @@ model AdminUser {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  activityLogs       AdminActivityLog[]
-  assignedChats      Conversation[]      @relation("AssignedAgent")
-  verifiedPayments   Order[]             @relation("PaymentVerifier")
-  auditedStatusChanges OrderStatusLog[]  @relation("StatusActor")
+  activityLogs         AdminActivityLog[]
+  assignedChats        Conversation[]     @relation("AssignedAgent")
+  verifiedPayments     Order[]            @relation("PaymentVerifier")
+  auditedStatusChanges OrderStatusLog[]   @relation("StatusActor")
 
   @@index([email])
 }
@@ -47,29 +65,30 @@ model AdminActivityLog {
 }
 
 model Match {
-  id              String   @id @default(cuid())
-  slug            String   @unique
-  title           String
-  teamAName       String
-  teamBName       String
-  teamACode       String
-  teamBCode       String
-  teamAFlagUrl    String?
-  teamBFlagUrl    String?
-  matchDate       DateTime
-  stadiumName     String
-  city            String
-  description     String?
-  heroImageUrl    String?
-  salesEnabled    Boolean  @default(true)
-  isSoldOut       Boolean  @default(false)
-  isFeatured      Boolean  @default(true)
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  title        String
+  teamAName    String
+  teamBName    String
+  teamACode    String
+  teamBCode    String
+  teamAFlagUrl String?
+  teamBFlagUrl String?
+  matchDate    DateTime
+  stadiumName  String
+  city         String
+  description  String?
+  heroImageUrl String?
+  salesEnabled Boolean  @default(true)
+  isSoldOut    Boolean  @default(false)
+  isFeatured   Boolean  @default(true)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   zones      StadiumZone[]
   categories TicketCategory[]
+  seats      Seat[]
   orders     Order[]
 
   @@index([slug])
@@ -79,20 +98,22 @@ model Match {
 }
 
 model StadiumZone {
-  id          String   @id @default(cuid())
-  matchId     String
-  categoryId  String
-  code        String
-  name        String
-  viewingQuality String @default("STANDARD")
-  svgPathId   String
-  sortOrder   Int      @default(0)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String   @id @default(cuid())
+  matchId        String
+  categoryId     String
+  code           String
+  name           String
+  sectionLabel   String   @default("")
+  viewingQuality String   @default("STANDARD")
+  svgPathId      String
+  sortOrder      Int      @default(0)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   match    Match          @relation(fields: [matchId], references: [id], onDelete: Cascade)
   category TicketCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  seats    Seat[]
 
   @@unique([matchId, code])
   @@index([matchId])
@@ -100,28 +121,59 @@ model StadiumZone {
 }
 
 model TicketCategory {
-  id          String   @id @default(cuid())
-  matchId     String
-  slug        String
-  name        String
-  description String
-  priceCents  Int
+  id             String   @id @default(cuid())
+  matchId        String
+  slug           String
+  name           String
+  description    String
+  priceCents     Int
   totalInventory Int
-  reservedCount  Int   @default(0)
-  soldCount      Int   @default(0)
-  sortOrder   Int      @default(0)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  reservedCount  Int      @default(0)
+  soldCount      Int      @default(0)
+  sortOrder      Int      @default(0)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  match        Match                 @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  match        Match                @relation(fields: [matchId], references: [id], onDelete: Cascade)
   zones        StadiumZone[]
+  seats        Seat[]
   paymentLinks PaymentLinkMapping[]
   orderItems   OrderItem[]
 
   @@unique([matchId, slug])
   @@index([matchId])
   @@index([isActive])
+}
+
+model Seat {
+  id          String    @id @default(cuid())
+  matchId     String
+  zoneId      String
+  categoryId  String
+  section     String
+  block       String
+  row         String
+  seatNumber  String
+  status      String    @default("AVAILABLE")
+  posX        Float
+  posY        Float
+  reservedUntil DateTime?
+  orderId     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  match    Match          @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  zone     StadiumZone    @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  category TicketCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  order    Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@unique([matchId, section, block, row, seatNumber])
+  @@index([matchId])
+  @@index([zoneId])
+  @@index([categoryId])
+  @@index([status])
+  @@index([orderId])
 }
 
 model PaymentMethod {
@@ -143,15 +195,15 @@ model PaymentMethod {
 }
 
 model PaymentLinkMapping {
-  id               String   @id @default(cuid())
-  ticketCategoryId String
-  quantity         Int
-  paymentMethodId  String
-  paymentUrl       String
+  id                  String   @id @default(cuid())
+  ticketCategoryId    String
+  quantity            Int
+  paymentMethodId     String
+  paymentUrl          String
   expectedAmountCents Int
-  isActive         Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   ticketCategory TicketCategory @relation(fields: [ticketCategoryId], references: [id], onDelete: Cascade)
   paymentMethod  PaymentMethod  @relation(fields: [paymentMethodId], references: [id], onDelete: Cascade)
@@ -163,44 +215,48 @@ model PaymentLinkMapping {
 }
 
 model Order {
-  id                    String    @id @default(cuid())
-  orderNumber           String    @unique
-  accessCode            String
-  matchId               String
-  status                String    @default("PENDING")
-  paymentStatus         String    @default("PENDING")
-  ticketStatus          String    @default("NONE")
-  customerName          String
-  customerEmail         String
-  customerPhone         String?
-  paymentMethodId       String?
-  paymentMethodCode     String?
-  paymentMethodName     String?
-  paymentUrlUsed        String?
-  unitPriceCents        Int
-  quantity              Int
-  subtotalCents         Int
-  feesCents             Int       @default(0)
-  totalCents            Int
-  reservationExpiresAt  DateTime?
-  verifiedAt            DateTime?
-  verifiedByAdminId     String?
-  adminNotes            String?
-  currentPage           String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  id                   String    @id @default(cuid())
+  orderNumber          String    @unique
+  accessCode           String
+  matchId              String
+  userId               String?
+  status               String    @default("PENDING")
+  paymentStatus        String    @default("PENDING")
+  ticketStatus         String    @default("NONE")
+  customerName         String
+  customerEmail        String
+  customerPhone        String?
+  paymentMethodId      String?
+  paymentMethodCode    String?
+  paymentMethodName    String?
+  paymentUrlUsed       String?
+  unitPriceCents       Int
+  quantity             Int
+  subtotalCents        Int
+  feesCents            Int       @default(0)
+  totalCents           Int
+  reservationExpiresAt DateTime?
+  verifiedAt           DateTime?
+  verifiedByAdminId    String?
+  adminNotes           String?
+  currentPage          String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
-  match             Match              @relation(fields: [matchId], references: [id])
-  paymentMethod     PaymentMethod?     @relation(fields: [paymentMethodId], references: [id], onDelete: SetNull)
-  verifiedByAdmin   AdminUser?         @relation("PaymentVerifier", fields: [verifiedByAdminId], references: [id], onDelete: SetNull)
-  items             OrderItem[]
-  tickets           Ticket[]
-  conversations     Conversation[]
-  statusLogs        OrderStatusLog[]
+  match           Match              @relation(fields: [matchId], references: [id])
+  user            User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  paymentMethod   PaymentMethod?     @relation(fields: [paymentMethodId], references: [id], onDelete: SetNull)
+  verifiedByAdmin AdminUser?         @relation("PaymentVerifier", fields: [verifiedByAdminId], references: [id], onDelete: SetNull)
+  items           OrderItem[]
+  seats           Seat[]
+  tickets         Ticket[]
+  conversations   Conversation[]
+  statusLogs      OrderStatusLog[]
 
   @@index([orderNumber])
   @@index([accessCode])
   @@index([matchId])
+  @@index([userId])
   @@index([status])
   @@index([paymentStatus])
   @@index([customerEmail])
@@ -216,6 +272,11 @@ model OrderItem {
   categorySlug     String
   zoneCode         String?
   zoneName         String?
+  section          String?
+  block            String?
+  row              String?
+  seatNumber       String?
+  seatId           String?
   unitPriceCents   Int
   quantity         Int
   lineTotalCents   Int
@@ -227,15 +288,15 @@ model OrderItem {
 }
 
 model OrderStatusLog {
-  id             String   @id @default(cuid())
-  orderId        String
-  previousStatus String?
-  newStatus      String
+  id                    String   @id @default(cuid())
+  orderId               String
+  previousStatus        String?
+  newStatus             String
   previousPaymentStatus String?
-  newPaymentStatus String?
-  actorAdminId   String?
-  note           String?
-  createdAt      DateTime @default(now())
+  newPaymentStatus      String?
+  actorAdminId          String?
+  note                  String?
+  createdAt             DateTime @default(now())
 
   order Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
   actor AdminUser? @relation("StatusActor", fields: [actorAdminId], references: [id], onDelete: SetNull)
@@ -245,22 +306,26 @@ model OrderStatusLog {
 }
 
 model Ticket {
-  id               String    @id @default(cuid())
-  ticketNumber     String    @unique
-  orderId          String
-  qrToken          String    @unique
-  status           String    @default("VALID")
-  holderName       String
-  categoryName     String
-  zoneName         String?
-  zoneCode         String?
-  matchSnapshot    String
-  checkedInAt      DateTime?
-  checkedInBy      String?
-  revokedAt        DateTime?
-  revokeReason     String?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id            String    @id @default(cuid())
+  ticketNumber  String    @unique
+  orderId       String
+  qrToken       String    @unique
+  status        String    @default("VALID")
+  holderName    String
+  categoryName  String
+  zoneName      String?
+  zoneCode      String?
+  section       String?
+  block         String?
+  row           String?
+  seatNumber    String?
+  matchSnapshot String
+  checkedInAt   DateTime?
+  checkedInBy   String?
+  revokedAt     DateTime?
+  revokeReason  String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 

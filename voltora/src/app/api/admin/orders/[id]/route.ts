@@ -101,6 +101,10 @@ export async function PATCH(
           await releaseReservation(item.ticketCategoryId, item.quantity);
         }
       }
+      await prisma.seat.updateMany({
+        where: { orderId: id, status: "RESERVED" },
+        data: { status: "AVAILABLE", orderId: null, reservedUntil: null },
+      });
       const order = await prisma.order.update({
         where: { id },
         data: {
@@ -108,7 +112,7 @@ export async function PATCH(
           reservationExpiresAt: null,
           adminNotes: parsed.data.adminNotes ?? existing.adminNotes,
         },
-        include: { items: true, tickets: true, match: true },
+        include: { items: true, tickets: true, match: true, seats: true },
       });
       await prisma.orderStatusLog.create({
         data: {

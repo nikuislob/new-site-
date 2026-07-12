@@ -11,6 +11,7 @@ export async function issueTicketsForOrder(orderId: string) {
       match: true,
       items: true,
       tickets: true,
+      seats: true,
     },
   });
 
@@ -23,7 +24,6 @@ export async function issueTicketsForOrder(orderId: string) {
   }
 
   const entryInstructions = await getSetting("entry_instructions");
-  const item = order.items[0];
   const matchSnapshot = JSON.stringify({
     title: order.match.title,
     teamAName: order.match.teamAName,
@@ -35,26 +35,39 @@ export async function issueTicketsForOrder(orderId: string) {
   });
 
   const tickets = [];
-  for (let i = 0; i < order.quantity; i++) {
-    const qrToken = generateQrToken();
+  const items = order.items.length > 0 ? order.items : [];
+
+  for (let i = 0; i < Math.max(order.quantity, items.length); i++) {
+    const item = items[i] || items[0];
     const ticket = await prisma.ticket.create({
       data: {
         ticketNumber: generateTicketNumber(),
         orderId: order.id,
-        qrToken,
+        qrToken: generateQrToken(),
         status: "VALID",
         holderName: order.customerName,
         categoryName: item?.categoryName || "Ticket",
         zoneName: item?.zoneName || null,
         zoneCode: item?.zoneCode || null,
+        section: item?.section || null,
+        block: item?.block || null,
+        row: item?.row || null,
+        seatNumber: item?.seatNumber || null,
         matchSnapshot,
       },
     });
     tickets.push(ticket);
   }
 
-  if (item?.ticketCategoryId) {
-    await convertReservationToSold(item.ticketCategoryId, order.quantity);
+  // Mark seats sold
+  await prisma.seat.updateMany({
+    where: { orderId: order.id },
+    data: { status: "SOLD", reservedUntil: null },
+  });
+
+  const categoryId = items[0]?.ticketCategoryId;
+  if (categoryId) {
+    await convertReservationToSold(categoryId, order.quantity);
   }
 
   await prisma.order.update({

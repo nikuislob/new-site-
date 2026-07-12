@@ -11,9 +11,10 @@ export const ROLE_PERMISSIONS: Record<AdminRole, string[]> = {
     "payments",
     "payment_links",
     "tickets",
+    "users",
     "settings",
   ],
-  SUPPORT_AGENT: ["dashboard", "support", "orders:read", "tickets:read"],
+  SUPPORT_AGENT: ["dashboard", "support", "orders:read", "tickets:read", "users:read"],
 };
 
 export function adminCan(role: AdminRole | string, permission: string): boolean {

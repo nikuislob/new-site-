@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { InteractiveStadium, type StadiumZoneView } from "@/components/stadium/InteractiveStadium";
-import { BookingPanel } from "@/components/stadium/BookingPanel";
+import { InteractiveStadium, type SeatView } from "@/components/stadium/InteractiveStadium";
+import { SeatBookingBar } from "@/components/stadium/SeatBookingBar";
+import { formatCurrency } from "@/lib/utils";
 
 type MatchPayload = {
   id: string;
@@ -11,18 +12,17 @@ type MatchPayload = {
   title: string;
   salesEnabled: boolean;
   isSoldOut: boolean;
-  zones: StadiumZoneView[];
-  categories: Array<{ id: string; priceCents: number; available: number }>;
+  seats: SeatView[];
+  categories: Array<{ id: string; name: string; priceCents: number; available: number }>;
 };
 
 export function StadiumExperience() {
   const router = useRouter();
   const [match, setMatch] = useState<MatchPayload | null>(null);
-  const [selected, setSelected] = useState<StadiumZoneView | null>(null);
-  const [quantity, setQuantity] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const maxQuantity = 2;
+  const maxSeats = 2;
 
   useEffect(() => {
     (async () => {
@@ -42,17 +42,45 @@ export function StadiumExperience() {
     })();
   }, []);
 
+  const selectedSeats = useMemo(
+    () => (match?.seats || []).filter((s) => selectedIds.includes(s.id)),
+    [match, selectedIds]
+  );
+
+  const toggleSeat = (seat: SeatView) => {
+    setSelectedIds((prev) => {
+      if (prev.includes(seat.id)) return prev.filter((id) => id !== seat.id);
+      if (prev.length >= maxSeats) return prev;
+      const existing = (match?.seats || []).filter((s) => prev.includes(s.id));
+      if (existing.length && existing[0].categoryId !== seat.categoryId) {
+        // Replace with same-category selection starting fresh with this seat
+        return [seat.id];
+      }
+      return [...prev, seat.id];
+    });
+  };
+
   const continueCheckout = () => {
-    if (!match || !selected) return;
+    if (!match || selectedSeats.length === 0) return;
     const payload = {
       matchId: match.id,
       matchSlug: match.slug,
-      ticketCategoryId: selected.categoryId,
-      categoryName: selected.categoryName,
-      zoneCode: selected.code,
-      zoneName: selected.name,
-      quantity,
-      unitPriceCents: selected.priceCents,
+      seatIds: selectedSeats.map((s) => s.id),
+      seats: selectedSeats.map((s) => ({
+        id: s.id,
+        section: s.section,
+        block: s.block,
+        row: s.row,
+        seatNumber: s.seatNumber,
+        categoryId: s.categoryId,
+        categoryName: s.categoryName,
+        zoneName: s.zoneName,
+        priceCents: s.priceCents,
+      })),
+      ticketCategoryId: selectedSeats[0].categoryId,
+      categoryName: selectedSeats[0].categoryName,
+      quantity: selectedSeats.length,
+      unitPriceCents: selectedSeats[0].priceCents,
     };
     sessionStorage.setItem("arenanights_checkout", JSON.stringify(payload));
     router.push("/checkout");
@@ -78,6 +106,8 @@ export function StadiumExperience() {
     );
   }
 
+  const subtotal = selectedSeats.reduce((sum, s) => sum + s.priceCents, 0);
+
   return (
     <div className="pb-36 md:pb-16">
       <div className="container-page py-10">
@@ -86,41 +116,31 @@ export function StadiumExperience() {
             Interactive Stadium
           </div>
           <h1 className="mt-2 font-display text-5xl tracking-[0.06em] text-white md:text-6xl">
-            Choose Your View
+            Choose Your Seats
           </h1>
-          <p className="mt-3 text-white/65">
-            Select a seating zone on the stadium map. Maximum {maxQuantity} tickets per normal order.
+          <p className="mt-3 text-white/70">
+            Limited available seats are highlighted. Select up to {maxSeats} seats from the same
+            category. From {formatCurrency(match.categories[0]?.priceCents || 8900)}.
           </p>
         </div>
 
-        <div id="map" className="mt-8 grid gap-5 lg:grid-cols-[1.45fr_0.7fr]">
+        <div id="map" className="mt-8">
           <InteractiveStadium
-            zones={match.zones}
-            selectedZoneCode={selected?.code}
-            onSelect={setSelected}
+            seats={match.seats}
+            selectedIds={selectedIds}
+            onToggle={toggleSeat}
+            maxSeats={maxSeats}
           />
-          <div className="hidden lg:block">
-            <BookingPanel
-              selectedZone={selected}
-              quantity={quantity}
-              maxQuantity={maxQuantity}
-              onQuantityChange={setQuantity}
-              onContinue={continueCheckout}
-            />
-          </div>
         </div>
       </div>
 
-      <div className="lg:hidden">
-        <BookingPanel
-          selectedZone={selected}
-          quantity={quantity}
-          maxQuantity={maxQuantity}
-          onQuantityChange={setQuantity}
-          onContinue={continueCheckout}
-          sticky
-        />
-      </div>
+      <SeatBookingBar
+        seats={selectedSeats}
+        subtotalCents={subtotal}
+        maxSeats={maxSeats}
+        onContinue={continueCheckout}
+        onClear={() => setSelectedIds([])}
+      />
     </div>
   );
 }

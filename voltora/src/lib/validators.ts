@@ -5,6 +5,43 @@ export const adminLoginSchema = z.object({
   password: z.string().min(1),
 });
 
+export const signupSchema = z
+  .object({
+    fullName: z.string().min(2).max(120),
+    email: z.string().email(),
+    password: z.string().min(8).max(100),
+    confirmPassword: z.string().min(8).max(100),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
+export const customerLoginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+});
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
+export const resetPasswordSchema = z
+  .object({
+    token: z.string().min(10),
+    password: z.string().min(8).max(100),
+    confirmPassword: z.string().min(8).max(100),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
+export const profileUpdateSchema = z.object({
+  fullName: z.string().min(2).max(120),
+  phone: z.string().min(7).max(30).optional().nullable().or(z.literal("")),
+});
+
 export const matchSchema = z.object({
   title: z.string().min(2).max(120),
   teamAName: z.string().min(1).max(80),
@@ -57,9 +94,7 @@ export const paymentLinkSchema = z.object({
 
 export const checkoutSchema = z.object({
   matchId: z.string().min(1),
-  ticketCategoryId: z.string().min(1),
-  zoneCode: z.string().min(1).optional().nullable(),
-  quantity: z.number().int().min(1).max(2),
+  seatIds: z.array(z.string().min(1)).min(1).max(2),
   customerName: z.string().min(2).max(120),
   customerEmail: z.string().email(),
   customerPhone: z.string().min(7).max(30).optional().nullable(),

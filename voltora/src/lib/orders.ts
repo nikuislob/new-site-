@@ -53,19 +53,24 @@ export async function resolvePaymentLink(
 
 export async function createPendingOrder(input: {
   matchId: string;
-  ticketCategoryId: string;
-  zoneCode?: string | null;
-  quantity: number;
+  seatIds: string[];
   customerName: string;
   customerEmail: string;
   customerPhone?: string | null;
   paymentMethodCode: "APPLE_PAY" | "CASH_APP";
+  userId?: string | null;
 }) {
   await releaseExpiredReservations();
 
   const maxQty = await getMaxTicketsPerOrder();
-  if (input.quantity < 1 || input.quantity > maxQty) {
+  const quantity = input.seatIds.length;
+  if (quantity < 1 || quantity > maxQty) {
     throw new InventoryError(`Maximum ${maxQty} tickets per order`);
+  }
+
+  const uniqueSeatIds = [...new Set(input.seatIds)];
+  if (uniqueSeatIds.length !== input.seatIds.length) {
+    throw new InventoryError("Duplicate seats selected");
   }
 
   const match = await prisma.match.findUnique({ where: { id: input.matchId } });
@@ -73,73 +78,70 @@ export async function createPendingOrder(input: {
     throw new InventoryError("Ticket sales are not available for this match");
   }
 
-  const category = await prisma.ticketCategory.findFirst({
-    where: { id: input.ticketCategoryId, matchId: input.matchId, isActive: true },
+  const seats = await prisma.seat.findMany({
+    where: {
+      id: { in: uniqueSeatIds },
+      matchId: input.matchId,
+    },
+    include: { zone: true, category: true },
   });
-  if (!category) throw new InventoryError("Ticket category unavailable");
+
+  if (seats.length !== uniqueSeatIds.length) {
+    throw new InventoryError("One or more selected seats were not found");
+  }
+
+  for (const seat of seats) {
+    if (seat.status !== "AVAILABLE") {
+      throw new InventoryError(`Seat ${seat.section}-${seat.row}-${seat.seatNumber} is no longer available`);
+    }
+  }
+
+  const categoryIds = [...new Set(seats.map((s) => s.categoryId))];
+  if (categoryIds.length !== 1) {
+    throw new InventoryError("All selected seats must be from the same ticket category");
+  }
+
+  const category = seats[0].category;
+  if (!category.isActive) throw new InventoryError("Ticket category unavailable");
 
   const available = availableInventory(
     category.totalInventory,
     category.reservedCount,
     category.soldCount
   );
-  if (available < input.quantity) {
+  if (available < quantity) {
     throw new InventoryError("Not enough tickets available");
   }
 
-  let zoneName: string | null = null;
-  let zoneCode: string | null = input.zoneCode || null;
-  if (input.zoneCode) {
-    const zone = await prisma.stadiumZone.findFirst({
-      where: {
-        matchId: input.matchId,
-        code: input.zoneCode,
-        categoryId: category.id,
-        isActive: true,
-      },
-    });
-    if (!zone) throw new InventoryError("Selected stadium section unavailable");
-    zoneName = zone.name;
-    zoneCode = zone.code;
-  } else {
-    const fallbackZone = await prisma.stadiumZone.findFirst({
-      where: { matchId: input.matchId, categoryId: category.id, isActive: true },
-      orderBy: { sortOrder: "asc" },
-    });
-    zoneName = fallbackZone?.name || null;
-    zoneCode = fallbackZone?.code || null;
-  }
-
-  const payment = await resolvePaymentLink(
-    category.id,
-    input.quantity,
-    input.paymentMethodCode
-  );
+  const payment = await resolvePaymentLink(category.id, quantity, input.paymentMethodCode);
   if ("error" in payment) {
     throw new InventoryError(payment.error || "Payment link unavailable");
   }
 
   const { method, mapping } = payment;
-
   const unitPriceCents = category.priceCents;
-  const subtotalCents = unitPriceCents * input.quantity;
-  const expected = mapping.expectedAmountCents;
-  if (expected !== subtotalCents) {
-    // Prefer category price as source of truth; still redirect to mapped link
-  }
-
+  const subtotalCents = unitPriceCents * quantity;
   const reservationMinutes = await getReservationMinutes();
   const reservationExpiresAt = new Date(Date.now() + reservationMinutes * 60 * 1000);
 
   const order = await prisma.$transaction(async (tx) => {
-    const locked = await tx.ticketCategory.findUnique({ where: { id: category.id } });
-    if (!locked) throw new InventoryError("Ticket category unavailable");
-    const avail = availableInventory(locked.totalInventory, locked.reservedCount, locked.soldCount);
-    if (avail < input.quantity) throw new InventoryError("Not enough tickets available");
+    // Re-check seats inside transaction
+    const lockedSeats = await tx.seat.findMany({
+      where: { id: { in: uniqueSeatIds } },
+      include: { zone: true, category: true },
+    });
+    if (lockedSeats.some((s) => s.status !== "AVAILABLE")) {
+      throw new InventoryError("Selected seats were just taken — please choose again");
+    }
+
+    const lockedCat = await tx.ticketCategory.findUnique({ where: { id: category.id } });
+    if (!lockedCat) throw new InventoryError("Ticket category unavailable");
+    const avail = availableInventory(lockedCat.totalInventory, lockedCat.reservedCount, lockedCat.soldCount);
+    if (avail < quantity) throw new InventoryError("Not enough tickets available");
 
     await tx.ticketCategory.update({
       where: { id: category.id },
-      data: { reservedCount: locked.reservedCount + input.quantity },
+      data: { reservedCount: lockedCat.reservedCount + quantity },
     });
 
     const created = await tx.order.create({
@@ -147,6 +149,7 @@ export async function createPendingOrder(input: {
         orderNumber: generateOrderNumber(),
         accessCode: generateAccessCode(),
         matchId: match.id,
+        userId: input.userId || null,
         status: "AWAITING_PAYMENT",
         paymentStatus: "PENDING",
         ticketStatus: "NONE",
@@ -158,22 +161,27 @@ export async function createPendingOrder(input: {
         paymentMethodName: method.name,
         paymentUrlUsed: mapping.paymentUrl,
         unitPriceCents,
-        quantity: input.quantity,
+        quantity,
         subtotalCents,
         feesCents: 0,
         totalCents: subtotalCents,
         reservationExpiresAt,
         items: {
-          create: {
+          create: seats.map((seat) => ({
             ticketCategoryId: category.id,
             categoryName: category.name,
             categorySlug: category.slug,
-            zoneCode,
-            zoneName,
+            zoneCode: seat.zone.code,
+            zoneName: seat.zone.name,
+            section: seat.section,
+            block: seat.block,
+            row: seat.row,
+            seatNumber: seat.seatNumber,
+            seatId: seat.id,
             unitPriceCents,
-            quantity: input.quantity,
-            lineTotalCents: subtotalCents,
-          },
+            quantity: 1,
+            lineTotalCents: unitPriceCents,
+          })),
         },
         statusLogs: {
           create: {
@@ -181,7 +189,7 @@ export async function createPendingOrder(input: {
             newStatus: "AWAITING_PAYMENT",
             previousPaymentStatus: null,
             newPaymentStatus: "PENDING",
-            note: "Order created and inventory reserved",
+            note: "Order created — seats reserved",
           },
         },
       },
@@ -189,10 +197,23 @@ export async function createPendingOrder(input: {
         match: true,
         items: true,
         paymentMethod: true,
+        seats: true,
       },
     });
 
-    return created;
+    await tx.seat.updateMany({
+      where: { id: { in: uniqueSeatIds } },
+      data: {
+        status: "RESERVED",
+        orderId: created.id,
+        reservedUntil: reservationExpiresAt,
+      },
+    });
+
+    return tx.order.findUniqueOrThrow({
+      where: { id: created.id },
+      include: { match: true, items: true, paymentMethod: true, seats: true },
+    });
   });
 
   return {

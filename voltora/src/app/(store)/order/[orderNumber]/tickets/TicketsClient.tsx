@@ -111,8 +111,10 @@ export default function TicketsPage() {
                       {ticket.zoneName ? ` · ${ticket.zoneName}` : ""}
                     </div>
                     <div>
-                      <div className="text-[11px] uppercase tracking-[0.14em] text-white/40">Holder</div>
-                      {ticket.holderName}
+                      <div className="text-[11px] uppercase tracking-[0.14em] text-white/40">Seat</div>
+                      {ticket.section
+                        ? `Sec ${ticket.section} · Block ${ticket.block} · Row ${ticket.row} · Seat ${ticket.seatNumber}`
+                        : ticket.zoneName || "General"}
                     </div>
                     <div>
                       <div className="text-[11px] uppercase tracking-[0.14em] text-white/40">Ticket ID</div>

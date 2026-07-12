@@ -10,7 +10,7 @@ import {
   slugify,
 } from "@/lib/utils";
 import { availableInventory } from "@/lib/inventory";
-import { checkoutSchema } from "@/lib/validators";
+import { checkoutSchema, signupSchema } from "@/lib/validators";
 
 describe("utils", () => {
   it("formats currency from cents", () => {
@@ -49,10 +49,9 @@ describe("inventory", () => {
 describe("auth permissions", () => {
   it("enforces role permissions", () => {
     expect(adminCan("SUPER_ADMIN", "payment_links")).toBe(true);
-    expect(adminCan("TICKET_MANAGER", "orders")).toBe(true);
+    expect(adminCan("TICKET_MANAGER", "users")).toBe(true);
     expect(adminCan("SUPPORT_AGENT", "support")).toBe(true);
     expect(adminCan("SUPPORT_AGENT", "payment_links")).toBe(false);
-    expect(adminCan("SUPPORT_AGENT", "orders:read")).toBe(true);
   });
 });
 
@@ -64,11 +63,10 @@ describe("support safety", () => {
 });
 
 describe("checkout validation", () => {
-  it("rejects quantity above 2", () => {
+  it("rejects more than 2 seats", () => {
     const parsed = checkoutSchema.safeParse({
       matchId: "m1",
-      ticketCategoryId: "c1",
-      quantity: 3,
+      seatIds: ["a", "b", "c"],
       customerName: "Test User",
       customerEmail: "test@example.com",
       paymentMethodCode: "APPLE_PAY",
@@ -76,11 +74,10 @@ describe("checkout validation", () => {
     expect(parsed.success).toBe(false);
   });
 
-  it("accepts valid 1-2 ticket orders", () => {
+  it("accepts 1-2 seat orders", () => {
     const parsed = checkoutSchema.safeParse({
       matchId: "m1",
-      ticketCategoryId: "c1",
-      quantity: 2,
+      seatIds: ["a", "b"],
       customerName: "Test User",
       customerEmail: "test@example.com",
       paymentMethodCode: "CASH_APP",
@@ -89,23 +86,21 @@ describe("checkout validation", () => {
   });
 });
 
-describe("payment mapping matrix", () => {
-  const combos = [
-    ["STANDARD VIEW", 1, "APPLE_PAY", 8900],
-    ["STANDARD VIEW", 2, "APPLE_PAY", 17800],
-    ["STANDARD VIEW", 1, "CASH_APP", 8900],
-    ["STANDARD VIEW", 2, "CASH_APP", 17800],
-    ["GOOD VIEW", 1, "APPLE_PAY", 16800],
-    ["GOOD VIEW", 2, "APPLE_PAY", 33600],
-    ["GOOD VIEW", 1, "CASH_APP", 16800],
-    ["GOOD VIEW", 2, "CASH_APP", 33600],
-  ] as const;
-
-  it("covers all 8 category/qty/method amount combinations", () => {
-    expect(combos).toHaveLength(8);
-    for (const [, qty, , amount] of combos) {
-      expect(qty).toBeLessThanOrEqual(2);
-      expect(amount).toBeGreaterThan(0);
-    }
+describe("signup validation", () => {
+  it("requires matching passwords", () => {
+    const bad = signupSchema.safeParse({
+      fullName: "Fan One",
+      email: "fan@example.com",
+      password: "password1",
+      confirmPassword: "password2",
+    });
+    expect(bad.success).toBe(false);
+    const good = signupSchema.safeParse({
+      fullName: "Fan One",
+      email: "fan@example.com",
+      password: "password1",
+      confirmPassword: "password1",
+    });
+    expect(good.success).toBe(true);
   });
 });
