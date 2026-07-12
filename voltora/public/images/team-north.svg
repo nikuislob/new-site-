@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="North United">
+  <rect width="64" height="64" rx="12" fill="#0b3d91"/>
+  <path d="M8 40 L32 12 L56 40 Z" fill="#f4f7fb"/>
+  <circle cx="32" cy="36" r="8" fill="#2ee59d"/>
+  <text x="32" y="56" text-anchor="middle" fill="#f4f7fb" font-size="10" font-family="Arial" font-weight="700">NUN</text>
+</svg>

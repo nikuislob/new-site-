@@ -1,27 +1,29 @@
 import { NextRequest } from "next/server";
-import { requireAdmin, adminCan, AuthError } from "@/lib/auth";
+import { AuthError, adminCan, logAdminActivity, requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { paymentMethodSchema } from "@/lib/validators";
-import { safeJson, errorJson } from "@/lib/utils";
+import { errorJson, safeJson } from "@/lib/utils";
+import { z } from "zod";
 
-const VALID_SLOTS = [1, 2, 3, 4] as const;
+const methodSchema = z.object({
+  id: z.string().optional(),
+  code: z.string().min(2),
+  name: z.string().min(2),
+  iconUrl: z.string().optional().nullable(),
+  buttonText: z.string().min(1),
+  instructions: z.string().optional().nullable(),
+  isActive: z.boolean(),
+  sortOrder: z.number().int().optional(),
+});
 
 export async function GET() {
   try {
     const admin = await requireAdmin();
     if (!adminCan(admin.role, "payments")) return errorJson("Forbidden", 403);
-
-    const methods = await prisma.paymentMethod.findMany({ orderBy: { slot: "asc" } });
-
-    const slots = VALID_SLOTS.map((slot) => {
-      const method = methods.find((m) => m.slot === slot);
-      return method || { slot, name: "", paymentUrl: "", buttonText: "Pay Now", isActive: false, iconUrl: null, instructions: null };
-    });
-
-    return safeJson({ paymentMethods: slots });
-  } catch (e) {
-    if (e instanceof AuthError) return errorJson(e.message, e.status);
-    return errorJson("Failed to fetch payment methods", 500);
+    const methods = await prisma.paymentMethod.findMany({ orderBy: { sortOrder: "asc" } });
+    return safeJson({ methods });
+  } catch (err) {
+    if (err instanceof AuthError) return errorJson(err.message, err.status);
+    return errorJson("Failed", 500);
   }
 }
 
@@ -29,41 +31,31 @@ export async function PUT(req: NextRequest) {
   try {
     const admin = await requireAdmin();
     if (!adminCan(admin.role, "payments")) return errorJson("Forbidden", 403);
-
     const body = await req.json();
-    const parsed = paymentMethodSchema.safeParse(body);
-    if (!parsed.success) {
-      return errorJson(parsed.error.issues[0]?.message || "Validation failed", 400);
+    const methods = z.array(methodSchema).safeParse(body.methods);
+    if (!methods.success) return errorJson("Invalid payment methods", 400);
+
+    const updated = [];
+    for (const method of methods.data) {
+      if (method.id) {
+        const row = await prisma.paymentMethod.update({
+          where: { id: method.id },
+          data: {
+            name: method.name,
+            iconUrl: method.iconUrl || null,
+            buttonText: method.buttonText,
+            instructions: method.instructions || null,
+            isActive: method.isActive,
+            sortOrder: method.sortOrder ?? 0,
+          },
+        });
+        updated.push(row);
+      }
     }
-
-    if (!VALID_SLOTS.includes(parsed.data.slot as 1 | 2 | 3 | 4)) {
-      return errorJson("Slot must be between 1 and 4", 400);
-    }
-
-    const method = await prisma.paymentMethod.upsert({
-      where: { slot: parsed.data.slot },
-      create: {
-        slot: parsed.data.slot,
-        name: parsed.data.name,
-        iconUrl: parsed.data.iconUrl || null,
-        paymentUrl: parsed.data.paymentUrl,
-        buttonText: parsed.data.buttonText,
-        instructions: parsed.data.instructions || null,
-        isActive: parsed.data.isActive ?? true,
-      },
-      update: {
-        name: parsed.data.name,
-        iconUrl: parsed.data.iconUrl || null,
-        paymentUrl: parsed.data.paymentUrl,
-        buttonText: parsed.data.buttonText,
-        instructions: parsed.data.instructions || null,
-        isActive: parsed.data.isActive ?? true,
-      },
-    });
-
-    return safeJson({ paymentMethod: method });
-  } catch (e) {
-    if (e instanceof AuthError) return errorJson(e.message, e.status);
-    return errorJson("Failed to update payment method", 500);
+    await logAdminActivity(admin.id, "UPDATE_PAYMENT_METHODS", "payment_method");
+    return safeJson({ methods: updated });
+  } catch (err) {
+    if (err instanceof AuthError) return errorJson(err.message, err.status);
+    return errorJson("Failed", 500);
   }
 }

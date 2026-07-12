@@ -3,5 +3,5 @@ import { safeJson } from "@/lib/utils";
 
 export async function POST() {
   await clearCustomerSession();
-  return safeJson({ success: true });
+  return safeJson({ ok: true });
 }

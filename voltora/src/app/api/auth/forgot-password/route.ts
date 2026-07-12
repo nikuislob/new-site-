@@ -1,31 +1,48 @@
 import { NextRequest } from "next/server";
-import { nanoid } from "nanoid";
+import { createResetToken } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { safeJson, errorJson } from "@/lib/utils";
-import { z } from "zod";
-
-const schema = z.object({ email: z.string().email() });
+import { forgotPasswordSchema } from "@/lib/validators";
+import { absoluteUrl, errorJson, safeJson } from "@/lib/utils";
 
 export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const parsed = schema.safeParse(body);
-    if (!parsed.success) return errorJson("Valid email required", 400);
+  const body = await req.json();
+  const parsed = forgotPasswordSchema.safeParse(body);
+  if (!parsed.success) return errorJson("Valid email required", 400);
 
-    const user = await prisma.user.findUnique({ where: { email: parsed.data.email.toLowerCase() } });
+  const email = parsed.data.email.toLowerCase();
+  const user = await prisma.user.findUnique({ where: { email } });
 
-    if (user) {
-      const resetToken = nanoid(32);
-      const resetExpiry = new Date(Date.now() + 60 * 60 * 1000);
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { resetToken, resetTokenExpiry: resetExpiry },
-      });
-      console.log(`[Voltora Demo] Password reset token for ${user.email}: ${resetToken}`);
-    }
-
-    return safeJson({ success: true, message: "If an account exists, a reset link has been sent." });
-  } catch {
-    return errorJson("Request failed", 500);
+  // Always return success to avoid email enumeration
+  if (!user) {
+    return safeJson({
+      ok: true,
+      message: "If an account exists, a reset link has been prepared.",
+    });
   }
+
+  const token = createResetToken();
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      resetToken: token,
+      resetTokenExpiry: new Date(Date.now() + 60 * 60 * 1000),
+    },
+  });
+
+  const resetUrl = absoluteUrl(`/account/reset-password?token=${token}`);
+  // Demo mode: return token/url in response (no SMTP configured)
+  console.log("[Arena Nights] Password reset link:", resetUrl);
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+  const exposeDemoLink =
+    process.env.NODE_ENV !== "production" ||
+    process.env.DEMO_AUTH_LINKS === "true" ||
+    appUrl.includes("localhost") ||
+    appUrl.includes("127.0.0.1");
+
+  return safeJson({
+    ok: true,
+    message: "If an account exists, a reset link has been prepared.",
+    demoResetUrl: exposeDemoLink ? resetUrl : undefined,
+  });
 }

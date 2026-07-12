@@ -1,63 +1,78 @@
+"use client";
+
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { getCurrentCustomer } from "@/lib/auth";
-import { prisma } from "@/lib/db";
-import { formatCurrency } from "@/lib/format";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { formatCurrency } from "@/lib/utils";
+import { formatMatchDate } from "@/lib/format";
 
-export const metadata = {
-  title: "My Orders",
-};
+export default function AccountOrdersPage() {
+  const router = useRouter();
+  const [orders, setOrders] = useState<any[]>([]);
 
-export default async function OrdersPage() {
-  const user = await getCurrentCustomer();
-  if (!user) redirect("/account/login?next=/account/orders");
-
-  const orders = await prisma.order.findMany({
-    where: { userId: user.id },
-    orderBy: { createdAt: "desc" },
-    include: { items: true },
-  });
+  useEffect(() => {
+    (async () => {
+      const me = await fetch("/api/auth/me");
+      if (!me.ok) {
+        router.replace("/account/login?redirect=/account/orders");
+        return;
+      }
+      const res = await fetch("/api/auth/orders");
+      const data = await res.json();
+      setOrders(data.orders || []);
+    })();
+  }, [router]);
 
   return (
-    <div className="container-page py-8 sm:py-12">
-      <div className="mb-8 flex items-center justify-between">
-        <h1 className="font-display text-3xl font-bold">Orders</h1>
-        <Link href="/account" className="text-sm font-semibold text-[var(--brand-deep)] hover:underline">
-          Back to account
-        </Link>
-      </div>
-
-      {orders.length === 0 ? (
-        <p className="text-[var(--ink-muted)]">You haven&apos;t placed any orders yet.</p>
-      ) : (
-        <div className="space-y-4">
-          {orders.map((order) => (
-            <Link
-              key={order.id}
-              href={`/account/orders/${order.id}`}
-              className="card-surface block p-5 transition hover:border-[var(--brand)]"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <p className="font-display text-lg font-semibold">{order.orderNumber}</p>
-                  <p className="mt-1 text-sm text-[var(--ink-muted)]">
-                    Placed {new Date(order.createdAt).toLocaleString()}
-                  </p>
-                  <p className="mt-2 text-sm">
-                    {order.items.length} item{order.items.length !== 1 ? "s" : ""} · {order.status.replace(/_/g, " ")}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="font-display text-xl font-bold">{formatCurrency(order.total)}</p>
-                  <p className="mt-1 text-xs font-bold uppercase tracking-wide text-[var(--warning)]">
-                    Payment: {order.paymentStatus}
-                  </p>
+    <div className="container-page py-10">
+      <Link href="/account" className="text-sm text-[var(--brand)]">
+        ← Back to account
+      </Link>
+      <h1 className="mt-3 font-display text-5xl text-white">My Orders</h1>
+      <div className="mt-6 space-y-3">
+        {orders.map((o) => (
+          <article key={o.id} className="ticket-glow p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="font-mono text-[var(--brand)]">{o.orderNumber}</div>
+                <div className="text-sm text-white/70">
+                  {o.match.teamAName} vs {o.match.teamBName} · {formatMatchDate(o.match.matchDate)}
                 </div>
               </div>
-            </Link>
-          ))}
-        </div>
-      )}
+              <div className="text-right">
+                <div className="font-bold text-white">{formatCurrency(o.totalCents)}</div>
+                <div className="text-xs text-white/50">
+                  {o.paymentStatus} · {o.ticketStatus}
+                </div>
+              </div>
+            </div>
+            <div className="mt-3 text-sm text-white/60">
+              {o.items?.map((i: any) => (
+                <div key={i.id}>
+                  {i.categoryName}
+                  {i.section
+                    ? ` · Sec ${i.section} Block ${i.block} Row ${i.row} Seat ${i.seatNumber}`
+                    : ""}
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {o.tickets?.length ? (
+                <Link
+                  href={`/order/${o.orderNumber}/tickets?accessCode=${encodeURIComponent(o.accessCode)}`}
+                  className="btn btn-primary !py-2 !text-sm"
+                >
+                  Download QR Pass
+                </Link>
+              ) : (
+                <Link href={`/order/${o.orderNumber}/pay`} className="btn btn-secondary !py-2 !text-sm">
+                  Continue payment
+                </Link>
+              )}
+            </div>
+          </article>
+        ))}
+      </div>
     </div>
   );
 }
