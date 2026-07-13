@@ -1,0 +1,16 @@
+{
+  "app": "pitchpass",
+  "domain": "pitchpass.shop",
+  "nodeVersion": 20,
+  "packageManager": "npm",
+  "installCommand": "npm ci",
+  "buildCommand": "npm run build",
+  "startCommand": "npm run start",
+  "rootDirectory": ".",
+  "notes": [
+    "Hostinger Web Apps / Node.js hosting is required (Business plan or higher on shared hosting).",
+    "Deploy the matchseat/ folder as the application root (not the monorepo root).",
+    "Set environment variables from .env.example before first start.",
+    "After first successful deploy, run: npm run db:seed"
+  ]
+}
