@@ -1,54 +1,58 @@
 # PitchPass on Hostinger (pitchpass.shop)
 
-## Account (configured)
+## Account
 
 | Item | Value |
 |------|-------|
 | Domain | `pitchpass.shop` |
 | Hosting username | `u942298531` |
 | Website IP | `82.25.125.231` |
-| Nameservers | `ns1.dns-parking.com`, `ns2.dns-parking.com` |
-| DNS A (@) | `82.25.125.231` |
-| DNS CNAME (www) | `pitchpass.shop` |
-| SSL | Lifetime SSL (auto-install after DNS) |
 | Plan | Single Web Hosting (`hostinger_starter_v3`) |
+| SSL | Let's Encrypt (active for `pitchpass.shop`) |
 
-## Important: Node.js / Web Apps
+## What works today
 
-PitchPass is a **Next.js** app (SSR + API routes + Prisma). Hostinger **Web Apps / Node.js** requires a **Business or Cloud** plan. The current Single plan blocks the Web Apps UI.
+- Download / source-zip UI removed from the PitchPass app (`matchseat/`).
+- Production bug fixes are on branch `cursor/pitchpass-hostinger-e886`.
+- Hostinger DNS A `@` → `82.25.125.231` (when NS resolve).
+- Static holding page on `https://pitchpass.shop/` (LiteSpeed serves `public_html/index.html`).
 
-After upgrading to Business:
+## Blocker: Single plan cannot run Next.js
 
-1. Deploy `matchseat/` as the app root (ZIP or GitHub subdirectory).
-2. Node 20 · install `npm ci` · build `npm run build` · start `npm run start`
-3. Set env vars from `matchseat/.env.example` (use strong secrets; `NEXT_PUBLIC_APP_URL=https://pitchpass.shop`)
-4. First boot runs `prisma db push` via `npm start`. Then run seed once: `npm run db:seed`
-5. Confirm SSL is active and `https://pitchpass.shop` loads.
+PitchPass is **Next.js + Prisma** (SSR, API routes, SQLite). Hostinger **Node.js Web Apps** need **Business** or **Cloud** hosting.
+
+On Single we observed:
+
+- Node archive builds can complete via API.
+- Runtime fails: `lscgid: execve():/usr/bin/node: No such file or directory`
+- Without Node, LiteSpeed only serves static files from `public_html`.
+
+### To go fully live on Hostinger
+
+1. Upgrade hosting to **Business Web Hosting** (or Cloud) in hPanel.
+2. Redeploy `matchseat/` (GitHub branch or `./scripts/deploy-hostinger-nodejs.sh`).
+3. Env vars:
+   - `DATABASE_URL=file:./prod.db`
+   - `AUTH_SECRET` / `ADMIN_AUTH_SECRET` (long random)
+   - `NEXT_PUBLIC_APP_URL=https://pitchpass.shop`
+   - `NODE_ENV=production`
+4. Start should be: `next start -H 0.0.0.0 -p ${PORT:-3000}` (prisma push/seed run during `npm run build`).
+5. Confirm Runtime Logs show Next listening, then open `/matches` and `/admin/login`.
 
 ### API deploy helper
 
-Uploads a tiny bootstrap archive; Hostinger then pulls `matchseat/` from this GitHub branch during `npm run build`.
-
 ```bash
-export HOSTINGER_API_TOKEN='…'   # from hPanel → Dev Tools → API
+export HOSTINGER_API_TOKEN='…'   # hPanel → Dev Tools → API
 export PITCHPASS_GIT_BRANCH='cursor/pitchpass-hostinger-e886'
 ./scripts/deploy-hostinger-nodejs.sh
 ```
 
-Required Hostinger env vars (Website → Deployments → Environment):
+## DNS notes
 
-- `DATABASE_URL=file:./prod.db`
-- `AUTH_SECRET` / `ADMIN_AUTH_SECRET` (long random)
-- `NEXT_PUBLIC_APP_URL=https://pitchpass.shop`
-- `NODE_ENV=production`
+- Panel may show `ns1.hostinger.com` / `ns2.hostinger.com` or `ns1.dns-parking.com` / `ns2.dns-parking.com`.
+- Domain lock (60-day) can delay some registry NS changes.
+- Prefer Hostinger nameservers + A `@` → `82.25.125.231`, CNAME `www` → `pitchpass.shop`.
 
-## DNS note
+## Security
 
-Nameservers were switched from Cloudflare to Hostinger (`ns1.dns-parking.com` / `ns2.dns-parking.com`). Global DNS can take up to 24 hours. Until then, some resolvers may still show Cloudflare NS or NXDOMAIN.
-
-## Current deploy status (as of setup)
-
-- Next.js Node build: **completed** on Hostinger (app type `next`, Node 20)
-- Website status in hPanel: **Running** + SSL
-- First boot runs `prisma db push` and seeds demo data if the DB is empty
-- Public URL may not resolve until DNS propagation finishes
+Rotate Hostinger password, FTP password, and API token after shared-agent setup.
