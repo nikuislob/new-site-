@@ -24,12 +24,13 @@ model User {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  addresses     Address[]
-  cart          Cart?
-  wishlist      WishlistItem[]
-  orders        Order[]
-  conversations Conversation[]
+  addresses      Address[]
+  cart           Cart?
+  wishlist       WishlistItem[]
+  orders         Order[]
+  conversations  Conversation[]
   recentlyViewed RecentlyViewed[]
+  bookings       Booking[]
 
   @@index([email])
   @@index([emailVerifyToken])
@@ -37,20 +38,20 @@ model User {
 }
 
 model Address {
-  id         String   @id @default(cuid())
-  userId     String
-  label      String   @default("Home")
-  fullName   String
-  phone      String?
-  line1      String
-  line2      String?
-  city       String
-  state      String
-  zipCode    String
-  country    String   @default("United States")
-  isDefault  Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(cuid())
+  userId    String
+  label     String   @default("Home")
+  fullName  String
+  phone     String?
+  line1     String
+  line2     String?
+  city      String
+  state     String
+  zipCode   String
+  country   String   @default("United States")
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -58,22 +59,23 @@ model Address {
 }
 
 model AdminUser {
-  id             String    @id @default(cuid())
-  email          String    @unique
-  passwordHash   String
-  name           String
-  role           String   @default("SUPPORT_AGENT")
-  isActive       Boolean   @default(true)
-  totpSecret     String?
-  totpEnabled    Boolean   @default(false)
-  failedLogins   Int       @default(0)
-  lockedUntil    DateTime?
-  lastLoginAt    DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         String    @default("SUPPORT_AGENT")
+  isActive     Boolean   @default(true)
+  totpSecret   String?
+  totpEnabled  Boolean   @default(false)
+  failedLogins Int       @default(0)
+  lockedUntil  DateTime?
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   activityLogs  AdminActivityLog[]
-  assignedChats Conversation[]     @relation("AssignedAgent")
+  assignedChats Conversation[]        @relation("AssignedAgent")
+  paymentLinks  ApprovedPaymentLink[]
 
   @@index([email])
 }
@@ -129,32 +131,32 @@ model Brand {
 }
 
 model Product {
-  id               String           @id @default(cuid())
-  sku              String           @unique
+  id               String   @id @default(cuid())
+  sku              String   @unique
   name             String
-  slug             String           @unique
+  slug             String   @unique
   brandId          String
   categoryId       String
   shortDescription String
   fullDescription  String
-  specifications   String           @default("{}")
+  specifications   String   @default("{}")
   mainImage        String
   originalPrice    Float
   sellingPrice     Float
-  stockQuantity    Int              @default(0)
-  condition        String           @default("NEW")
-  deliveryEstimate String           @default("3-5 business days")
-  badges           String           @default("[]")
-  isFeatured       Boolean          @default(false)
-  isTrending       Boolean          @default(false)
-  isBestSeller     Boolean          @default(false)
-  isNewArrival     Boolean          @default(false)
-  isActive         Boolean          @default(true)
-  relatedIds       String           @default("[]")
-  viewCount        Int              @default(0)
-  salesCount       Int              @default(0)
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  stockQuantity    Int      @default(0)
+  condition        String   @default("NEW")
+  deliveryEstimate String   @default("3-5 business days")
+  badges           String   @default("[]")
+  isFeatured       Boolean  @default(false)
+  isTrending       Boolean  @default(false)
+  isBestSeller     Boolean  @default(false)
+  isNewArrival     Boolean  @default(false)
+  isActive         Boolean  @default(true)
+  relatedIds       String   @default("[]")
+  viewCount        Int      @default(0)
+  salesCount       Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   brand          Brand            @relation(fields: [brandId], references: [id])
   category       Category         @relation(fields: [categoryId], references: [id])
@@ -201,7 +203,7 @@ model ProductVariant {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  product    Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
   cartItems  CartItem[]
   orderItems OrderItem[]
 
@@ -209,12 +211,12 @@ model ProductVariant {
 }
 
 model Cart {
-  id        String   @id @default(cuid())
-  userId    String?  @unique
-  sessionId String?  @unique
+  id         String   @id @default(cuid())
+  userId     String?  @unique
+  sessionId  String?  @unique
   couponCode String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   user  User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
   items CartItem[]
@@ -266,35 +268,35 @@ model RecentlyViewed {
 }
 
 model Coupon {
-  id            String    @id @default(cuid())
-  code          String    @unique
-  description   String?
-  discountType  String    @default("percent")
-  discountValue Float
-  minOrderAmount Float    @default(0)
-  maxUses       Int?
-  usedCount     Int       @default(0)
-  isActive      Boolean   @default(true)
-  expiresAt     DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  code           String    @unique
+  description    String?
+  discountType   String    @default("percent")
+  discountValue  Float
+  minOrderAmount Float     @default(0)
+  maxUses        Int?
+  usedCount      Int       @default(0)
+  isActive       Boolean   @default(true)
+  expiresAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@index([code])
 }
 
 model Order {
-  id                String        @id @default(cuid())
-  orderNumber       String        @unique
+  id                String   @id @default(cuid())
+  orderNumber       String   @unique
   userId            String?
   guestEmail        String?
-  status            String        @default("ORDER_CREATED")
-  paymentStatus     String        @default("PENDING")
+  status            String   @default("ORDER_CREATED")
+  paymentStatus     String   @default("PENDING")
   paymentMethodId   String?
   paymentMethodName String?
   subtotal          Float
-  discountAmount    Float         @default(0)
-  shippingAmount    Float         @default(0)
-  taxAmount         Float         @default(0)
+  discountAmount    Float    @default(0)
+  shippingAmount    Float    @default(0)
+  taxAmount         Float    @default(0)
   total             Float
   couponCode        String?
   customerName      String
@@ -305,16 +307,16 @@ model Order {
   shippingCity      String
   shippingState     String
   shippingZip       String
-  shippingCountry   String        @default("United States")
+  shippingCountry   String   @default("United States")
   trackingNumber    String?
   shippingCarrier   String?
   customerNotes     String?
   adminNotes        String?
   estimatedDelivery String?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  user          User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user          User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
   paymentMethod PaymentMethod? @relation(fields: [paymentMethodId], references: [id], onDelete: SetNull)
   items         OrderItem[]
   conversations Conversation[]
@@ -328,17 +330,17 @@ model Order {
 }
 
 model OrderItem {
-  id           String  @id @default(cuid())
-  orderId      String
-  productId    String?
-  variantId    String?
-  productName  String
-  productSku   String
-  variantName  String?
-  imageUrl     String?
-  unitPrice    Float
-  quantity     Int
-  lineTotal    Float
+  id          String  @id @default(cuid())
+  orderId     String
+  productId   String?
+  variantId   String?
+  productName String
+  productSku  String
+  variantName String?
+  imageUrl    String?
+  unitPrice   Float
+  quantity    Int
+  lineTotal   Float
 
   order   Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
@@ -363,28 +365,32 @@ model PaymentMethod {
 }
 
 model Conversation {
-  id            String             @id @default(cuid())
-  userId        String?
-  guestName     String?
-  guestEmail    String?
-  orderId       String?
-  subject       String?
-  status        String             @default("OPEN")
-  assignedToId  String?
-  lastMessageAt DateTime           @default(now())
-  unreadAdmin   Int                @default(0)
-  unreadCustomer Int               @default(0)
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
+  id             String   @id @default(cuid())
+  userId         String?
+  guestName      String?
+  guestEmail     String?
+  orderId        String?
+  bookingId      String?
+  subject        String?
+  status         String   @default("OPEN")
+  assignedToId   String?
+  lastMessageAt  DateTime @default(now())
+  unreadAdmin    Int      @default(0)
+  unreadCustomer Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  user       User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
-  order      Order?        @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  assignedTo AdminUser?    @relation("AssignedAgent", fields: [assignedToId], references: [id], onDelete: SetNull)
-  messages   Message[]
+  user         User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
+  order        Order?                @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  booking      Booking?              @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  assignedTo   AdminUser?            @relation("AssignedAgent", fields: [assignedToId], references: [id], onDelete: SetNull)
+  messages     Message[]
+  paymentLinks ApprovedPaymentLink[]
 
   @@index([userId])
   @@index([status])
   @@index([lastMessageAt])
+  @@index([bookingId])
 }
 
 model Message {
@@ -421,4 +427,220 @@ model LoginAttempt {
 
   @@index([email, context])
   @@index([createdAt])
+}
+
+model Venue {
+  id         String       @id @default(cuid())
+  externalId String?      @unique
+  name       String
+  city       String
+  region     String?
+  country    String       @default("United States")
+  timezone   String
+  capacity   Int?
+  matches    EventMatch[]
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+}
+
+model EventMatch {
+  id              String    @id @default(cuid())
+  externalId      String?   @unique
+  slug            String    @unique
+  competition     String    @default("FIFA World Cup 2026")
+  round           String
+  homeTeam        String
+  awayTeam        String
+  homeTeamCode    String?
+  awayTeamCode    String?
+  homePlaceholder String?
+  awayPlaceholder String?
+  kickoffAt       DateTime
+  status          String    @default("SCHEDULED")
+  venueId         String
+  isVisible       Boolean   @default(true)
+  displayOverride String?
+  sourceUpdatedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  venue    Venue           @relation(fields: [venueId], references: [id])
+  listings TicketListing[]
+  bookings Booking[]
+
+  @@index([kickoffAt])
+  @@index([status, isVisible])
+}
+
+model TicketListing {
+  id                String   @id @default(cuid())
+  matchId           String
+  category          String
+  section           String
+  row               String?
+  seatFrom          String?
+  seatTo            String?
+  exactSeats        String?
+  quantityTotal     Int
+  quantityAvailable Int
+  quantityReserved  Int      @default(0)
+  quantitySold      Int      @default(0)
+  price             Float
+  currency          String   @default("USD")
+  ticketType        String   @default("E-ticket")
+  deliveryMethod    String   @default("E-ticket / PDF")
+  notes             String?
+  restrictions      String?
+  seatsTogether     Boolean  @default(true)
+  allowedQuantities String   @default("[]")
+  mapZone           String   @default("SIDELINE")
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  match        EventMatch             @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  reservations InventoryReservation[]
+  bookingItems BookingItem[]
+
+  @@index([matchId, isActive])
+  @@index([price])
+}
+
+model InventoryReservation {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  listingId String
+  quantity  Int
+  status    String   @default("ACTIVE")
+  expiresAt DateTime
+  bookingId String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  listing TicketListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  booking Booking?      @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  @@index([status, expiresAt])
+  @@index([listingId])
+}
+
+model Booking {
+  id                 String    @id @default(cuid())
+  reference          String    @unique
+  accessTokenHash    String?
+  userId             String?
+  customerFirstName  String
+  customerLastName   String
+  customerEmail      String
+  customerPhone      String
+  customerCountry    String
+  matchId            String
+  status             String    @default("AWAITING_PAYMENT")
+  paymentStatus      String    @default("PENDING")
+  paymentMethod      String?
+  subtotal           Float
+  serviceFee         Float     @default(0)
+  taxAmount          Float     @default(0)
+  total              Float
+  currency           String    @default("USD")
+  deliveryMethod     String    @default("E-ticket / PDF")
+  reservationExpires DateTime?
+  paidAt             DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  user          User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
+  match         EventMatch            @relation(fields: [matchId], references: [id])
+  items         BookingItem[]
+  payments      Payment[]
+  deliveries    TicketDelivery[]
+  conversations Conversation[]
+  reservation   InventoryReservation?
+  paymentLinks  ApprovedPaymentLink[]
+
+  @@index([userId])
+  @@index([customerEmail])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([createdAt])
+}
+
+model BookingItem {
+  id             String  @id @default(cuid())
+  bookingId      String
+  listingId      String?
+  category       String
+  section        String
+  row            String?
+  seats          String?
+  quantity       Int
+  unitPrice      Float
+  lineTotal      Float
+  ticketType     String
+  deliveryMethod String
+  notes          String?
+
+  booking Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  listing TicketListing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+
+  @@index([bookingId])
+  @@index([listingId])
+}
+
+model Payment {
+  id                String   @id @default(cuid())
+  bookingId         String
+  provider          String
+  providerReference String?  @unique
+  idempotencyKey    String   @unique
+  status            String   @default("PENDING")
+  amount            Float
+  currency          String   @default("USD")
+  providerPayload   String?
+  errorCode         String?
+  errorMessage      String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@index([status])
+}
+
+model TicketDelivery {
+  id                 String    @id @default(cuid())
+  bookingId          String
+  method             String
+  status             String    @default("PENDING")
+  secureFileKey      String?
+  originalFileName   String?
+  mobileInstructions String?
+  deliveryNotes      String?
+  deliveredAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@index([status])
+}
+
+model ApprovedPaymentLink {
+  id             String    @id @default(cuid())
+  bookingId      String
+  conversationId String
+  sentById       String
+  url            String
+  label          String    @default("Complete Payment")
+  clickedAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  booking      Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sentBy       AdminUser    @relation(fields: [sentById], references: [id])
+
+  @@index([bookingId])
+  @@index([conversationId])
 }

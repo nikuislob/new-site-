@@ -1,111 +1,17 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
+import { Save, ShieldCheck } from "lucide-react";
 import { adminFetch } from "@/lib/admin-fetch";
 
-const STORE_KEYS = [
-  { key: "store_name", label: "Store name", type: "text" },
-  { key: "store_tagline", label: "Store tagline", type: "text" },
-  { key: "contact_email", label: "Contact email", type: "email" },
-  { key: "contact_phone", label: "Contact phone", type: "text" },
-  { key: "free_shipping_threshold", label: "Free shipping threshold ($)", type: "number" },
-  { key: "flat_shipping_rate", label: "Flat shipping rate ($)", type: "number" },
-  { key: "global_delivery_estimate", label: "Global delivery estimate", type: "text" },
-  { key: "return_policy", label: "Return policy", type: "textarea" },
-  { key: "shipping_policy", label: "Shipping policy", type: "textarea" },
-] as const;
+const keys = ["service_fee_percent", "tax_percent", "reservation_minutes", "payment_link_allowlist", "contact_email", "contact_phone"];
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-
-  useEffect(() => {
-    async function load() {
-      try {
-        const data = await adminFetch<{ settings: Record<string, string> }>("/api/admin/settings");
-        setSettings(data.settings);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to load settings");
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
-
-  function update(key: string, value: string) {
-    setSettings((prev) => ({ ...prev, [key]: value }));
-  }
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    setError("");
-    setSuccess("");
-    try {
-      const payload: Record<string, string> = {};
-      for (const field of STORE_KEYS) {
-        payload[field.key] = settings[field.key] ?? "";
-      }
-      const data = await adminFetch<{ settings: Record<string, string> }>("/api/admin/settings", {
-        method: "PUT",
-        body: JSON.stringify(payload),
-      });
-      setSettings(data.settings);
-      setSuccess("Store settings saved.");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Save failed");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  const inputClass = "w-full rounded-lg border border-[#1e2d45] bg-[#0b1220] px-3 py-2 text-sm text-white focus:border-[#00c2a8] focus:outline-none";
-  const labelClass = "mb-1 block text-sm font-medium text-[#c5d0e0]";
-
-  if (loading) return <p className="text-[#8b9cb8]">Loading store settings…</p>;
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-white">Store settings</h1>
-        <p className="mt-1 text-sm text-[#8b9cb8]">Shipping rates, contact info, and policies</p>
-      </div>
-
-      {error ? <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300" role="alert">{error}</div> : null}
-      {success ? <div className="rounded-lg border border-teal-500/30 bg-teal-500/10 px-4 py-3 text-sm text-teal-300" role="status">{success}</div> : null}
-
-      <form onSubmit={handleSubmit} className="max-w-2xl space-y-4 rounded-xl border border-[#1e2d45] bg-[#121a2b] p-5">
-        {STORE_KEYS.map((field) => (
-          <div key={field.key}>
-            <label htmlFor={field.key} className={labelClass}>{field.label}</label>
-            {field.type === "textarea" ? (
-              <textarea
-                id={field.key}
-                rows={4}
-                value={settings[field.key] ?? ""}
-                onChange={(e) => update(field.key, e.target.value)}
-                className={inputClass}
-              />
-            ) : (
-              <input
-                id={field.key}
-                type={field.type}
-                value={settings[field.key] ?? ""}
-                onChange={(e) => update(field.key, e.target.value)}
-                className={inputClass}
-              />
-            )}
-          </div>
-        ))}
-
-        <button type="submit" disabled={saving} className="rounded-lg bg-[#00c2a8] px-6 py-2.5 text-sm font-semibold text-[#0b1220] hover:bg-[#00d4b8] disabled:opacity-60">
-          {saving ? "Saving…" : "Save settings"}
-        </button>
-      </form>
-    </div>
-  );
+  useEffect(() => { adminFetch<{ settings: Record<string,string> }>("/api/admin/settings").then((data) => setSettings(data.settings)).catch((cause) => setError(cause.message)); }, []);
+  async function save() { setError(""); setNotice(""); try { const payload = Object.fromEntries(keys.map((key) => [key, settings[key] || ""])); await adminFetch("/api/admin/settings", { method: "PUT", body: JSON.stringify(payload) }); setNotice("Marketplace settings saved."); } catch (cause) { setError(cause instanceof Error ? cause.message : "Save failed"); } }
+  return <div className="max-w-3xl space-y-6"><div><h1 className="font-display text-2xl font-bold">Marketplace settings</h1><p className="mt-1 text-sm text-[#8b9cb8]">Fees, reservation duration, support, and approved payment-link domains.</p></div><div className="rounded-xl border border-[#20352d] bg-[#0f251d] p-5"><div className="grid gap-4 sm:grid-cols-3"><Field label="Service fee (%)"><input className="admin-input" value={settings.service_fee_percent || ""} onChange={(e) => setSettings({ ...settings, service_fee_percent: e.target.value })} /></Field><Field label="Tax (%)"><input className="admin-input" value={settings.tax_percent || ""} onChange={(e) => setSettings({ ...settings, tax_percent: e.target.value })} /></Field><Field label="Reservation minutes"><input className="admin-input" value={settings.reservation_minutes || ""} onChange={(e) => setSettings({ ...settings, reservation_minutes: e.target.value })} /></Field></div><Field label="Approved payment-link domains (comma separated)"><input className="admin-input" value={settings.payment_link_allowlist || ""} onChange={(e) => setSettings({ ...settings, payment_link_allowlist: e.target.value })} /></Field><div className="mt-3 flex items-start gap-2 rounded-lg bg-[#071b13] p-3 text-xs text-[#83978f]"><ShieldCheck className="h-4 w-4 shrink-0 text-[#35e89b]" /> Exact hosts and their subdomains are permitted. HTTPS is always required; credentials should never be included in chat links.</div><div className="grid gap-4 sm:grid-cols-2"><Field label="Support email"><input className="admin-input" value={settings.contact_email || ""} onChange={(e) => setSettings({ ...settings, contact_email: e.target.value })} /></Field><Field label="Support phone"><input className="admin-input" value={settings.contact_phone || ""} onChange={(e) => setSettings({ ...settings, contact_phone: e.target.value })} /></Field></div>{error ? <p className="mt-4 text-sm text-red-300">{error}</p> : null}{notice ? <p className="mt-4 text-sm text-emerald-300">{notice}</p> : null}<button onClick={save} className="mt-5 inline-flex items-center gap-2 rounded-lg bg-[#35e89b] px-5 py-2.5 text-sm font-bold text-[#062017]"><Save className="h-4 w-4" /> Save settings</button></div><style jsx>{`.admin-input{width:100%;border:1px solid #294139;background:#071b13;border-radius:8px;padding:.65rem .75rem;color:white;font-size:.875rem}`}</style></div>;
 }
+function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="mt-4 block"><span className="mb-1.5 block text-xs text-[#82978f]">{label}</span>{children}</label>; }

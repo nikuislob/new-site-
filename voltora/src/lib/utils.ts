@@ -32,7 +32,11 @@ export function generateOrderNumber(): string {
   const y = date.getFullYear().toString().slice(-2);
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
-  return `VT${y}${m}${d}-${nanoid(8).toUpperCase()}`;
+  return `PP${y}${m}${d}-${nanoid(8).toUpperCase()}`;
+}
+
+export function formatMoney(amount: number, currency = "USD"): string {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(amount);
 }
 
 export function parseJsonArray(value: string | null | undefined): string[] {

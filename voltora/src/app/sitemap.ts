@@ -1,41 +1,24 @@
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/db";
+import { ACTIVE_MATCH_STATUSES } from "@/lib/tickets";
 import { absoluteUrl } from "@/lib/utils";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const base = absoluteUrl("");
-
-  const [products, categories] = await Promise.all([
-    prisma.product.findMany({
-      where: { isActive: true },
-      select: { slug: true, updatedAt: true },
-    }),
-    prisma.category.findMany({
-      where: { isActive: true },
-      select: { slug: true, updatedAt: true },
-    }),
-  ]);
-
-  const staticRoutes: MetadataRoute.Sitemap = [
-    { url: base, lastModified: new Date(), changeFrequency: "daily", priority: 1 },
-    { url: absoluteUrl("/products"), lastModified: new Date(), changeFrequency: "daily", priority: 0.9 },
-    { url: absoluteUrl("/search"), lastModified: new Date(), changeFrequency: "weekly", priority: 0.5 },
-    { url: absoluteUrl("/cart"), lastModified: new Date(), changeFrequency: "weekly", priority: 0.3 },
+  const matches = await prisma.eventMatch.findMany({
+    where: { isVisible: true, kickoffAt: { gt: new Date() }, status: { in: ACTIVE_MATCH_STATUSES } },
+    select: { slug: true, updatedAt: true },
+  });
+  return [
+    { url: absoluteUrl("/"), lastModified: new Date(), changeFrequency: "hourly", priority: 1 },
+    { url: absoluteUrl("/support"), lastModified: new Date(), changeFrequency: "monthly", priority: 0.5 },
+    { url: absoluteUrl("/policies/privacy"), lastModified: new Date(), changeFrequency: "yearly", priority: 0.2 },
+    { url: absoluteUrl("/policies/terms"), lastModified: new Date(), changeFrequency: "yearly", priority: 0.2 },
+    { url: absoluteUrl("/policies/refunds"), lastModified: new Date(), changeFrequency: "yearly", priority: 0.2 },
+    ...matches.map((match) => ({
+      url: absoluteUrl(`/matches/${match.slug}`),
+      lastModified: match.updatedAt,
+      changeFrequency: "hourly" as const,
+      priority: 0.9,
+    })),
   ];
-
-  const productRoutes: MetadataRoute.Sitemap = products.map((p) => ({
-    url: absoluteUrl(`/products/${p.slug}`),
-    lastModified: p.updatedAt,
-    changeFrequency: "weekly",
-    priority: 0.8,
-  }));
-
-  const categoryRoutes: MetadataRoute.Sitemap = categories.map((c) => ({
-    url: absoluteUrl(`/category/${c.slug}`),
-    lastModified: c.updatedAt,
-    changeFrequency: "weekly",
-    priority: 0.7,
-  }));
-
-  return [...staticRoutes, ...productRoutes, ...categoryRoutes];
 }

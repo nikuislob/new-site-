@@ -44,7 +44,7 @@ export default function RegisterPage() {
       <form onSubmit={onSubmit} className="card-surface mx-auto max-w-md space-y-4 p-6 animate-fade-up">
         <div className="text-center">
           <h1 className="font-display text-2xl font-bold">Create account</h1>
-          <p className="mt-1 text-sm text-[var(--ink-muted)]">Join Voltora for faster checkout and order tracking</p>
+          <p className="mt-1 text-sm text-[var(--ink-muted)]">Join PitchPass for ticket tracking and delivery updates</p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <Input

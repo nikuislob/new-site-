@@ -6,23 +6,23 @@ import { absoluteUrl } from "@/lib/utils";
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
   title: {
-    default: "Voltora — Premium US Electronics",
-    template: "%s | Voltora",
+    default: "PitchPass — World Cup 2026 tickets",
+    template: "%s | PitchPass",
   },
   description:
-    "Shop trending smartphones, laptops, audio, gaming, and smart home gear. Premium electronics delivered across the United States.",
-  keywords: ["electronics", "smartphones", "laptops", "US store", "Voltora", "premium tech"],
+    "Explore tickets for remaining FIFA World Cup 2026 matches with transparent pricing and order-linked support.",
+  keywords: ["World Cup 2026 tickets", "football tickets", "PitchPass", "match tickets"],
   openGraph: {
     type: "website",
-    siteName: "Voltora",
-    title: "Voltora — Premium US Electronics",
-    description: "Premium electronics. Delivered.",
+    siteName: "PitchPass",
+    title: "PitchPass — Your Seat. Your Match. Your Moment.",
+    description: "Tickets for the remaining FIFA World Cup 2026 matches.",
     url: absoluteUrl("/"),
   },
   twitter: {
     card: "summary_large_image",
-    title: "Voltora — Premium US Electronics",
-    description: "Premium electronics. Delivered.",
+    title: "PitchPass — World Cup 2026 tickets",
+    description: "Tickets for the remaining FIFA World Cup 2026 matches.",
   },
 };
 

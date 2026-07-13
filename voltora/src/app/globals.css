@@ -1,27 +1,27 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Sora:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
 @import "tailwindcss";
 
 :root {
-  --bg: #0b1220;
-  --bg-elevated: #121a2b;
-  --bg-soft: #182338;
-  --surface: #f4f7fb;
+  --bg: #071b13;
+  --bg-elevated: #0c2a1e;
+  --bg-soft: #123b2b;
+  --surface: #f3f7f4;
   --surface-card: #ffffff;
-  --ink: #0c1424;
-  --ink-muted: #5b6b86;
-  --line: #d7e0ee;
-  --brand: #00c2a8;
-  --brand-deep: #009e89;
-  --brand-soft: #d8f7f2;
-  --accent: #ff6b3d;
-  --accent-soft: #ffe6de;
+  --ink: #071b13;
+  --ink-muted: #5d746b;
+  --line: #d8e5de;
+  --brand: #35e89b;
+  --brand-deep: #159461;
+  --brand-soft: #dff8eb;
+  --accent: #e4b95c;
+  --accent-soft: #f9efd7;
   --success: #12805c;
   --warning: #b45309;
   --danger: #c03545;
   --shadow: 0 18px 50px rgba(12, 20, 36, 0.12);
   --radius: 18px;
-  --font-display: "Outfit", sans-serif;
-  --font-body: "Sora", sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-body: "Manrope", sans-serif;
 }
 
 @theme inline {
@@ -43,9 +43,8 @@ body {
   min-height: 100vh;
   color: var(--ink);
   background:
-    radial-gradient(1200px 500px at 10% -10%, rgba(0, 194, 168, 0.12), transparent 55%),
-    radial-gradient(900px 420px at 90% 0%, rgba(255, 107, 61, 0.08), transparent 50%),
-    linear-gradient(180deg, #eef3f9 0%, #f7f9fc 40%, #f4f7fb 100%);
+    radial-gradient(1200px 500px at 10% -10%, rgba(53, 232, 155, 0.12), transparent 55%),
+    linear-gradient(180deg, #eef5f1 0%, #f8faf8 40%, #f3f7f4 100%);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
 }

@@ -39,7 +39,7 @@ function LoginForm() {
     <form onSubmit={onSubmit} className="card-surface mx-auto max-w-md space-y-4 p-6 animate-fade-up">
       <div className="text-center">
         <h1 className="font-display text-2xl font-bold">Sign in</h1>
-        <p className="mt-1 text-sm text-[var(--ink-muted)]">Access your Voltora account</p>
+        <p className="mt-1 text-sm text-[var(--ink-muted)]">Access your PitchPass tickets and support</p>
       </div>
       <Input
         label="Email"
@@ -64,7 +64,7 @@ function LoginForm() {
         Sign in
       </Button>
       <p className="text-center text-sm text-[var(--ink-muted)]">
-        New to Voltora?{" "}
+        New to PitchPass?{" "}
         <Link href="/account/register" className="font-semibold text-[var(--brand-deep)] hover:underline">
           Create account
         </Link>

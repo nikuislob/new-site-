@@ -1,89 +1,29 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Package, User, Heart } from "lucide-react";
+import { Headphones, MapPin, Settings, TicketCheck } from "lucide-react";
 import { getCurrentCustomer } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { formatCurrency } from "@/lib/format";
+import { formatMoney } from "@/lib/utils";
 
-export const metadata = {
-  title: "My Account",
-  description: "Manage your Voltora account, orders, and profile.",
-};
+export const metadata = { title: "My tickets" };
 
-export default async function AccountDashboardPage() {
+export default async function AccountPage() {
   const user = await getCurrentCustomer();
   if (!user) redirect("/account/login?next=/account");
-
-  const [orders, wishlistCount] = await Promise.all([
-    prisma.order.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: "desc" },
-      take: 3,
-    }),
-    prisma.wishlistItem.count({ where: { userId: user.id } }),
+  const [bookings, conversations] = await Promise.all([
+    prisma.booking.findMany({ where: { userId: user.id }, include: { match: { include: { venue: true } }, items: true, deliveries: true }, orderBy: { createdAt: "desc" } }),
+    prisma.conversation.count({ where: { userId: user.id, status: "OPEN" } }),
   ]);
+  const upcoming = bookings.filter((booking) => booking.match.kickoffAt > new Date());
+  const past = bookings.filter((booking) => booking.match.kickoffAt <= new Date());
+  return <div className="container-page py-12">
+    <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs font-bold uppercase tracking-[.18em] text-[#17845f]">Your PitchPass</p><h1 className="mt-2 font-display text-4xl font-extrabold">Welcome back, {user.firstName}.</h1><p className="mt-2 text-sm text-[var(--ink-muted)]">{user.email}</p></div><div className="flex gap-2"><Link href="/support" className="btn btn-secondary text-sm"><Headphones className="h-4 w-4" /> Support {conversations ? `(${conversations})` : ""}</Link><Link href="/account/profile" className="btn btn-dark text-sm"><Settings className="h-4 w-4" /> Profile</Link></div></div>
+    <section className="mt-10"><h2 className="font-display text-2xl font-bold">Upcoming tickets</h2>{upcoming.length ? <div className="mt-5 grid gap-4 lg:grid-cols-2">{upcoming.map((booking) => <BookingCard key={booking.id} booking={booking} />)}</div> : <div className="mt-5 rounded-[24px] border border-dashed border-[#b9cec3] bg-white p-10 text-center"><TicketCheck className="mx-auto h-7 w-7 text-[#799187]" /><p className="mt-3 font-semibold">No upcoming tickets</p><Link href="/#matches" className="mt-3 inline-block text-sm font-bold text-[#17845f]">Explore matches</Link></div>}</section>
+    {past.length ? <section className="mt-12"><h2 className="font-display text-2xl font-bold">Past orders</h2><div className="mt-5 grid gap-4 lg:grid-cols-2">{past.map((booking) => <BookingCard key={booking.id} booking={booking} />)}</div></section> : null}
+  </div>;
+}
 
-  const links = [
-    { href: "/account/orders", label: "Orders", icon: Package, desc: "Track and view order history" },
-    { href: "/account/profile", label: "Profile", icon: User, desc: "Update your details and addresses" },
-    { href: "/wishlist", label: "Wishlist", icon: Heart, desc: `${wishlistCount} saved items` },
-  ];
-
-  return (
-    <div className="container-page py-8 sm:py-12">
-      <div className="animate-fade-up">
-        <h1 className="font-display text-3xl font-bold">
-          Welcome back, {user.firstName}
-        </h1>
-        <p className="mt-2 text-[var(--ink-muted)]">{user.email}</p>
-      </div>
-
-      <div className="mt-8 grid gap-4 sm:grid-cols-3">
-        {links.map((link) => (
-          <Link
-            key={link.href}
-            href={link.href}
-            className="card-surface group p-5 transition hover:-translate-y-0.5"
-          >
-            <link.icon className="h-5 w-5 text-[var(--brand)]" />
-            <h2 className="mt-3 font-display font-semibold">{link.label}</h2>
-            <p className="mt-1 text-sm text-[var(--ink-muted)]">{link.desc}</p>
-          </Link>
-        ))}
-      </div>
-
-      <section className="mt-10">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-display text-xl font-semibold">Recent orders</h2>
-          <Link href="/account/orders" className="text-sm font-semibold text-[var(--brand-deep)] hover:underline">
-            View all
-          </Link>
-        </div>
-        {orders.length === 0 ? (
-          <p className="text-sm text-[var(--ink-muted)]">No orders yet.</p>
-        ) : (
-          <div className="space-y-3">
-            {orders.map((order) => (
-              <Link
-                key={order.id}
-                href={`/account/orders/${order.id}`}
-                className="card-surface flex flex-wrap items-center justify-between gap-3 p-4 transition hover:border-[var(--brand)]"
-              >
-                <div>
-                  <p className="font-semibold">{order.orderNumber}</p>
-                  <p className="text-sm text-[var(--ink-muted)]">
-                    {new Date(order.createdAt).toLocaleDateString()} · {order.status.replace(/_/g, " ")}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="font-display font-bold">{formatCurrency(order.total)}</p>
-                  <p className="text-xs font-semibold text-[var(--warning)]">{order.paymentStatus}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
-    </div>
-  );
+type BookingCardProps = { booking: Awaited<ReturnType<typeof prisma.booking.findFirst>> & { match: { homeTeam: string; awayTeam: string; kickoffAt: Date; venue: { name: string; city: string } }; items: { quantity: number; category: string }[]; deliveries: { status: string }[] } };
+function BookingCard({ booking }: BookingCardProps) {
+  return <div className="rounded-[24px] border border-[#dce8e2] bg-white p-6 shadow-sm"><div className="flex justify-between gap-3"><div><p className="font-mono text-xs text-[#17845f]">{booking.reference}</p><h3 className="mt-2 font-display text-xl font-bold">{booking.match.homeTeam} vs {booking.match.awayTeam}</h3></div><span className="h-fit rounded-full bg-[#edf6f1] px-3 py-1 text-[10px] font-bold uppercase text-[#41705c]">{booking.paymentStatus}</span></div><p className="mt-4 flex items-center gap-2 text-xs text-[#647a71]"><MapPin className="h-3.5 w-3.5" /> {booking.match.venue.name}, {booking.match.venue.city}</p><div className="mt-5 flex items-end justify-between border-t border-[#e7efeb] pt-4"><div><p className="text-xs text-[#758a82]">{booking.items[0]?.quantity} × {booking.items[0]?.category} · Delivery {booking.deliveries[0]?.status || "pending"}</p><p className="mt-1 font-display font-bold">{formatMoney(booking.total, booking.currency)}</p></div><span className="text-xs font-semibold text-[#61786d]">{booking.status.replaceAll("_"," ")}</span></div></div>;
 }

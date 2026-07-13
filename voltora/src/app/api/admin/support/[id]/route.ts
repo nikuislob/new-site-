@@ -26,6 +26,17 @@ export async function GET(_req: NextRequest, { params }: Params) {
         user: { select: { id: true, email: true, firstName: true, lastName: true } },
         assignedTo: { select: { id: true, name: true, email: true } },
         order: { select: { id: true, orderNumber: true } },
+        booking: {
+          include: {
+            match: true,
+            items: true,
+            payments: { orderBy: { createdAt: "desc" }, take: 1 },
+          },
+        },
+        paymentLinks: {
+          include: { sentBy: { select: { id: true, name: true } } },
+          orderBy: { createdAt: "asc" },
+        },
       },
     });
 
