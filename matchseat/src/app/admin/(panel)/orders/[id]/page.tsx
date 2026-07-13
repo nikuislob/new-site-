@@ -122,6 +122,12 @@ export default function AdminOrderDetailPage() {
               {order.paymentUrlUsed}
             </a>
           ) : null}
+          {order.paymentProvider || order.paymentExternalId ? (
+            <p className="mt-2 text-xs font-semibold text-slate-500">
+              {order.paymentProvider || "PROVIDER"}
+              {order.paymentExternalId ? ` · ${order.paymentExternalId}` : ""}
+            </p>
+          ) : null}
         </div>
         <div>
           <p className="text-xs font-black uppercase tracking-wide text-slate-500">Total</p>

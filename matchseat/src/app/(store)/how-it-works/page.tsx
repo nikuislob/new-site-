@@ -8,8 +8,8 @@ export default function HowItWorksPage() {
         {[
           { n: "01", t: "Pick a match", d: "Browse upcoming US venues and kickoff times." },
           { n: "02", t: "Choose seats", d: "Basic $70 or Premium $140 — max 2 tickets per customer." },
-          { n: "03", t: "Checkout", d: "We calculate your total ($70 / $140 / $210 / $280) and open the matching Cash App or Apple Pay link." },
-          { n: "04", t: "Confirmation", d: "Order stays Payment Pending until PitchPass operators verify payment in the admin panel." },
+          { n: "03", t: "Checkout", d: "We calculate your total ($70 / $140 / $210 / $280) and open a live Cash App payment page (via Polapine) for the exact amount." },
+          { n: "04", t: "Confirmation", d: "Order stays Payment Pending until Cash App payment confirms — usually automatic via webhook, with admin review as backup." },
         ].map((step) => (
           <div key={step.n} className="card-quiet p-6">
             <p className="font-display text-4xl font-bold text-[var(--brand)]">{step.n}</p>

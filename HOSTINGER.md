@@ -53,6 +53,24 @@ export PITCHPASS_GIT_BRANCH='cursor/pitchpass-hostinger-e886'
 - Domain lock (60-day) can delay some registry NS changes.
 - Prefer Hostinger nameservers + A `@` → `82.25.125.231`, CNAME `www` → `pitchpass.shop`.
 
+## Polapine Cash App API (pd.cash)
+
+Checkout creates live Cash App payment pages via Polapine when these env vars are set:
+
+```bash
+POLAPINE_API_KEY=pk_...
+POLAPINE_API_SECRET=sk_...
+POLAPINE_API_BASE_URL=https://pay.polapine.com/api/v1
+POLAPINE_BRAND_SLUG=pitchpass
+```
+
+- Keys: https://pd.cash/api-access/
+- Docs: https://pd.cash/api/docs
+- Webhook endpoint on PitchPass: `POST /api/webhooks/polapine`
+- Set the dashboard webhook URL to `https://pitchpass.shop/api/webhooks/polapine` (also sent per payment link).
+
+Cash App gateway limits on the account: **$5–$500** per payment.
+
 ## Security
 
-Rotate Hostinger password, FTP password, and API token after shared-agent setup.
+Rotate Hostinger password, FTP password, API tokens, and Polapine keys after shared-agent setup.

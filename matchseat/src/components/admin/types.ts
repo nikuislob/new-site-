@@ -40,6 +40,8 @@ export type AdminOrder = {
   paymentStatus: string;
   paymentMethodName: string | null;
   paymentUrlUsed: string | null;
+  paymentExternalId?: string | null;
+  paymentProvider?: string | null;
   subtotalCents: number;
   totalCents: number;
   ticketCount: number;

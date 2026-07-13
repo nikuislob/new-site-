@@ -6,6 +6,11 @@ import {
   MAX_TICKETS_PER_ORDER,
 } from "../src/lib/tickets";
 import { adminCan } from "../src/lib/permissions";
+import {
+  extractOrderReferenceFromWebhook,
+  isPaidWebhookEvent,
+  parsePolapineCreateResponse,
+} from "../src/lib/polapine";
 
 describe("ticket cart rules", () => {
   it("prices basic and premium correctly", () => {
@@ -48,6 +53,43 @@ describe("payment link resolution", () => {
     expect(
       resolvePaymentUrl("https://cash.app/$PitchPassDemo/{amount}", 14000, "https://example.com/pay/cashapp/140")
     ).toBe("https://example.com/pay/cashapp/140");
+  });
+});
+
+describe("polapine response parsing", () => {
+  it("parses create-payment-link response", () => {
+    const parsed = parsePolapineCreateResponse({
+      success: true,
+      data: {
+        payment_link: {
+          id: 3510,
+          unique_id: "tige-rkjfa0zh",
+          invoice_id: "QULCIJ195N37DGKE",
+          brand_slug: "pitchpass",
+          amount: 70,
+        },
+        urls: {
+          payment_page:
+            "https://pay.polapine.com/pay/@pitchpass/QULCIJ195N37DGKE?email=buyer%2540example.com&amount=70&step=payment",
+        },
+      },
+    });
+    expect(parsed.invoiceId).toBe("QULCIJ195N37DGKE");
+    expect(parsed.paymentUrl).toContain("pay.polapine.com/pay/@pitchpass/");
+  });
+
+  it("detects paid webhook events and order references", () => {
+    const payload = {
+      event: "payment.completed",
+      data: {
+        status: "completed",
+        order_reference: "PP-ABC123",
+        invoice_id: "INV1",
+        metadata: { order_id: "PP-ABC123" },
+      },
+    };
+    expect(isPaidWebhookEvent(payload)).toBe(true);
+    expect(extractOrderReferenceFromWebhook(payload)).toBe("PP-ABC123");
   });
 });
 

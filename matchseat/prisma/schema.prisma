@@ -141,6 +141,9 @@ model Order {
   paymentMethodId   String?
   paymentMethodName String?
   paymentUrlUsed    String?
+  /// Polapine invoice / payment link id for Cash App API reconciliation
+  paymentExternalId String?
+  paymentProvider   String?
   subtotalCents     Int
   totalCents        Int
   ticketCount       Int
@@ -159,6 +162,7 @@ model Order {
   @@index([userId])
   @@index([status])
   @@index([paymentStatus])
+  @@index([paymentExternalId])
 }
 
 model OrderItem {

@@ -174,7 +174,8 @@ export function CheckoutForm() {
         <div className="card-quiet p-6">
           <h2 className="font-display text-3xl font-bold">Payment method</h2>
           <p className="mt-1 text-sm text-[var(--ink-muted)]">
-            We open the Cash App or Apple Pay link for exactly {formatCurrency(total)}. Your order stays Payment Pending until confirmed.
+            Cash App checkout creates a live Polapine payment page for exactly {formatCurrency(total)}. Your
+            order stays Payment Pending until Cash App payment is confirmed.
           </p>
           <div className="mt-4 grid gap-3">
             {methods.length === 0 ? (

@@ -229,11 +229,12 @@ async function main() {
     data: {
       code: "CASHAPP",
       name: "Cash App",
-      urlTemplate: "https://cash.app/$PitchPassDemo/{amount}",
+      // Fallback template if POLAPINE_API_KEY is unset; live checkout uses Polapine API links.
+      urlTemplate: "https://pay.polapine.com/pay/@pitchpass",
       iconUrl: "/images/pay-cashapp.svg",
       buttonText: "Pay with Cash App",
       instructions:
-        "Complete payment in Cash App and include your PitchPass Order ID in the note so support can confirm your tickets quickly.",
+        "You will be redirected to Polapine Cash App checkout for the exact order total. After paying, return here — PitchPass confirms payment automatically via webhook.",
       isActive: true,
       sortOrder: 1,
     },

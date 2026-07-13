@@ -1,6 +1,10 @@
 import { getCurrentCustomer } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import {
+  createPolapinePaymentLink,
+  isPolapineConfigured,
+} from "@/lib/polapine";
+import {
   calcCartTotals,
   CartLine,
   resolvePaymentUrl,
@@ -27,6 +31,10 @@ function normalizeLines(lines: CartLine[]): CartLine[] {
     else grouped.set(key, { ...line });
   }
   return [...grouped.values()];
+}
+
+function appBaseUrl(): string {
+  return (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
 }
 
 export async function POST(request: Request) {
@@ -71,28 +79,61 @@ export async function POST(request: Request) {
 
         const stock = line.seatTier === "BASIC" ? match.basicStock : match.premiumStock;
         if (stock < line.quantity) {
-          throw new CheckoutError(`Not enough ${line.seatTier.toLowerCase()} seats for ${match.homeTeam} vs ${match.awayTeam}.`, 409);
+          throw new CheckoutError(
+            `Not enough ${line.seatTier.toLowerCase()} seats for ${match.homeTeam} vs ${match.awayTeam}.`,
+            409
+          );
         }
       }
 
-      const paymentUrl = resolvePaymentUrl(
+      const orderNumber = generateOrderNumber();
+      const guestEmail = parsed.data.guestEmail.toLowerCase().trim();
+      const guestName = parsed.data.guestName.trim();
+      const usePolapine =
+        paymentMethod.code.toUpperCase() === "CASHAPP" && isPolapineConfigured();
+
+      let paymentUrl = resolvePaymentUrl(
         paymentMethod.urlTemplate,
         totals.totalCents,
         paymentMethod.overrides[0]?.paymentUrl
       );
+      let paymentExternalId: string | null = null;
+      let paymentProvider: string | null = null;
+
+      if (usePolapine) {
+        try {
+          const link = await createPolapinePaymentLink({
+            amountCents: totals.totalCents,
+            orderNumber,
+            customerEmail: guestEmail,
+            customerName: guestName,
+            description: `PitchPass tickets (${totals.ticketCount}) — ${orderNumber}`,
+            redirectUrl: `${appBaseUrl()}/order/${orderNumber}`,
+            webhookUrl: `${appBaseUrl()}/api/webhooks/polapine`,
+          });
+          paymentUrl = link.paymentUrl;
+          paymentExternalId = link.invoiceId || link.uniqueId;
+          paymentProvider = "POLAPINE";
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Cash App payment link failed.";
+          throw new CheckoutError(message, 502);
+        }
+      }
 
       const order = await tx.order.create({
         data: {
-          orderNumber: generateOrderNumber(),
+          orderNumber,
           userId: customer?.id,
-          guestEmail: parsed.data.guestEmail.toLowerCase().trim(),
-          guestName: parsed.data.guestName.trim(),
+          guestEmail,
+          guestName,
           guestPhone: parsed.data.guestPhone?.trim() || null,
           status: "PAYMENT_PENDING",
           paymentStatus: "PENDING",
           paymentMethodId: paymentMethod.id,
           paymentMethodName: paymentMethod.name,
           paymentUrlUsed: paymentUrl,
+          paymentExternalId,
+          paymentProvider,
           subtotalCents: totals.subtotalCents,
           totalCents: totals.totalCents,
           ticketCount: totals.ticketCount,
