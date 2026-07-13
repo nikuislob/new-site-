@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowDown, ArrowRight, Check, Headphones, LockKeyhole, Radio, Search, TicketCheck, Trophy } from "lucide-react";
+import { ArrowDown, ArrowRight, Check, Headphones, LockKeyhole, Radio, TicketCheck, Trophy } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { ACTIVE_MATCH_STATUSES, releaseExpiredReservations } from "@/lib/tickets";
 import { MatchCard } from "@/components/matches/MatchCard";

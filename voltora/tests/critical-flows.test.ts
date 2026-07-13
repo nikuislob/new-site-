@@ -16,6 +16,8 @@ import { discountPercent, slugify, generateOrderNumber, parseJsonArray } from ".
 import { containsSensitiveContent } from "../src/lib/support";
 import { adminCan } from "../src/lib/auth";
 import { cartTotals } from "../src/lib/cart";
+import { isMatchPurchasable } from "../src/lib/tickets";
+import { createCashAppPayment, normalizeCashAppStatus } from "../src/lib/cashapp";
 
 describe("utils", () => {
   it("calculates discount percent correctly", () => {
@@ -28,8 +30,8 @@ describe("utils", () => {
     expect(slugify("Apextron Pulse X1 5G")).toBe("apextron-pulse-x1-5g");
   });
 
-  it("generates order numbers with VT prefix", () => {
-    expect(generateOrderNumber()).toMatch(/^VT\d{6}-[A-Z0-9]+$/);
+  it("generates booking references with PP prefix", () => {
+    expect(generateOrderNumber()).toMatch(/^PP\d{6}-[A-Z0-9]+$/);
   });
 
   it("parses JSON arrays safely", () => {
@@ -57,9 +59,10 @@ describe("admin permissions", () => {
     expect(adminCan("SUPPORT_AGENT", "support")).toBe(true);
   });
 
-  it("allows product manager products", () => {
-    expect(adminCan("PRODUCT_MANAGER", "products")).toBe(true);
-    expect(adminCan("PRODUCT_MANAGER", "orders")).toBe(false);
+  it("allows inventory managers to manage matches and tickets", () => {
+    expect(adminCan("PRODUCT_MANAGER", "matches")).toBe(true);
+    expect(adminCan("PRODUCT_MANAGER", "tickets")).toBe(true);
+    expect(adminCan("PRODUCT_MANAGER", "bookings")).toBe(false);
   });
 });
 
@@ -105,5 +108,34 @@ describe("payment workflow invariants", () => {
     expect(slots).toHaveLength(4);
     expect(Math.min(...slots)).toBe(1);
     expect(Math.max(...slots)).toBe(4);
+  });
+});
+
+describe("ticket marketplace invariants", () => {
+  it("blocks completed, hidden, and past matches", () => {
+    const future = new Date(Date.now() + 60_000);
+    const past = new Date(Date.now() - 60_000);
+    expect(isMatchPurchasable({ kickoffAt: future, status: "SCHEDULED", isVisible: true })).toBe(true);
+    expect(isMatchPurchasable({ kickoffAt: future, status: "FINISHED", isVisible: true })).toBe(false);
+    expect(isMatchPurchasable({ kickoffAt: future, status: "SCHEDULED", isVisible: false })).toBe(false);
+    expect(isMatchPurchasable({ kickoffAt: past, status: "SCHEDULED", isVisible: true })).toBe(false);
+  });
+
+  it("normalizes provider payment outcomes without fake success", () => {
+    expect(normalizeCashAppStatus("completed")).toBe("SUCCEEDED");
+    expect(normalizeCashAppStatus("declined")).toBe("FAILED");
+    expect(normalizeCashAppStatus("cancelled")).toBe("CANCELLED");
+    expect(normalizeCashAppStatus("unknown")).toBe("PENDING");
+  });
+
+  it("refuses to fabricate a Cash App payment without provider configuration", async () => {
+    await expect(createCashAppPayment({
+      bookingReference: "PP260712-TEST",
+      amount: 100,
+      currency: "USD",
+      idempotencyKey: "test-idempotency-key",
+      returnUrl: "http://localhost/return",
+      webhookUrl: "http://localhost/webhook",
+    })).rejects.toThrow("Cash App is not configured");
   });
 });

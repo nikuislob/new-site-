@@ -15,6 +15,7 @@ type Params = { params: Promise<{ reference: string }> };
 
 export async function POST(request: Request, { params }: Params) {
   let paymentId: string | null = null;
+  let bookingId: string | null = null;
   try {
     const parsed = schema.safeParse(await request.json());
     if (!parsed.success) return errorJson(parsed.error.issues[0]?.message || "Invalid payment request", 400);
@@ -25,6 +26,7 @@ export async function POST(request: Request, { params }: Params) {
       include: { match: true, items: true },
     });
     if (!booking) return errorJson("Booking not found", 404);
+    bookingId = booking.id;
     const tokenValid = parsed.data.accessToken &&
       booking.accessTokenHash === safeBookingAccessToken(parsed.data.accessToken);
     if (booking.userId ? booking.userId !== user?.id && !tokenValid : !tokenValid) {
@@ -101,6 +103,12 @@ export async function POST(request: Request, { params }: Params) {
       await prisma.payment.update({
         where: { id: paymentId },
         data: { status: "FAILED", errorMessage: error instanceof Error ? error.message : "Provider error" },
+      }).catch(() => undefined);
+    }
+    if (bookingId) {
+      await prisma.booking.update({
+        where: { id: bookingId },
+        data: { status: "AWAITING_PAYMENT", paymentStatus: "FAILED" },
       }).catch(() => undefined);
     }
     const message = error instanceof Error ? error.message : "Unable to start payment";

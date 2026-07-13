@@ -9,14 +9,13 @@ type Venue = { id: string; name: string; city: string };
 
 export default function AdminMatchesPage() {
   const [matches, setMatches] = useState<Match[]>([]);
-  const [venues, setVenues] = useState<Venue[]>([]);
   const [saving, setSaving] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const load = async () => {
     try {
       const data = await adminFetch<{ matches: Match[]; venues: Venue[] }>("/api/admin/matches");
-      setMatches(data.matches); setVenues(data.venues);
+      setMatches(data.matches);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to load matches"); }
   };
   useEffect(() => { void load(); }, []);

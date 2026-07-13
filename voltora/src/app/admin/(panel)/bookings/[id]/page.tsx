@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useState } from "react";
 import { Save } from "lucide-react";
 import { adminFetch } from "@/lib/admin-fetch";
 import { formatMoney } from "@/lib/utils";
@@ -17,8 +17,8 @@ export default function AdminBookingPage({ params }: { params: Promise<{ id: str
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [ticketFile, setTicketFile] = useState<File | null>(null);
-  async function load() { const data = await adminFetch<{ booking: Booking }>(`/api/admin/bookings/${id}`); setBooking(data.booking); setStatus(data.booking.status); setPaymentStatus(data.booking.paymentStatus); setDeliveryStatus(data.booking.deliveries[0]?.status || "PENDING"); setDeliveryNotes(data.booking.deliveries[0]?.deliveryNotes || ""); }
-  useEffect(() => { void load().catch((cause) => setError(cause.message)); }, [id]);
+  const load = useCallback(async () => { const data = await adminFetch<{ booking: Booking }>(`/api/admin/bookings/${id}`); setBooking(data.booking); setStatus(data.booking.status); setPaymentStatus(data.booking.paymentStatus); setDeliveryStatus(data.booking.deliveries[0]?.status || "PENDING"); setDeliveryNotes(data.booking.deliveries[0]?.deliveryNotes || ""); }, [id]);
+  useEffect(() => { void load().catch((cause) => setError(cause.message)); }, [load]);
   async function save() { setNotice(""); setError(""); try { await adminFetch(`/api/admin/bookings/${id}`, { method: "PATCH", body: JSON.stringify({ status, paymentStatus, deliveryStatus, deliveryNotes }) }); setNotice("Order updated and audit logged."); await load(); } catch (cause) { setError(cause instanceof Error ? cause.message : "Update failed"); } }
   async function uploadTicket() {
     if (!ticketFile) return;

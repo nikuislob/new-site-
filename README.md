@@ -1,6 +1,6 @@
-# Voltora E-Commerce Platform
+# PitchPass Football Ticket Marketplace
 
-Complete production-ready US electronics marketplace.
+Full-stack marketplace for remaining FIFA World Cup 2026 matches.
 
 **Project directory:** [`voltora/`](./voltora/)
 
@@ -12,7 +12,7 @@ npm run db:seed
 npm run dev
 ```
 
-- Store: http://localhost:3000  
+- Marketplace: http://localhost:3000  
 - Admin: http://localhost:3000/admin/login  
 
-See [`voltora/README.md`](./voltora/README.md) for full documentation, demo credentials, and deployment notes.
+See [`voltora/README.md`](./voltora/README.md) for architecture, provider configuration, demo credentials, and deployment notes.

@@ -44,6 +44,18 @@ export async function PATCH(request: Request, { params }: Params) {
           ...(bookingData.paymentStatus === "PAID" ? { paidAt: new Date(), status: bookingData.status || "PAID" } : {}),
         },
       });
+      if (bookingData.paymentStatus === "PAID") {
+        const latestPayment = await tx.payment.findFirst({
+          where: { bookingId: id },
+          orderBy: { createdAt: "desc" },
+        });
+        if (latestPayment && latestPayment.status !== "SUCCEEDED") {
+          await tx.payment.update({
+            where: { id: latestPayment.id },
+            data: { status: "MANUALLY_CONFIRMED" },
+          });
+        }
+      }
       if (deliveryStatus || deliveryNotes !== undefined || mobileInstructions !== undefined) {
         const current = await tx.ticketDelivery.findFirst({ where: { bookingId: id } });
         const delivery = current

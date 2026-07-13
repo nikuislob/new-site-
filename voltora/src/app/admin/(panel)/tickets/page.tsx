@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Save, Ticket } from "lucide-react";
+import { Plus, Save } from "lucide-react";
 import { adminFetch } from "@/lib/admin-fetch";
 import { formatMoney } from "@/lib/utils";
 
